@@ -1,0 +1,76 @@
+.
+├── index.html
+├── LICENSE
+├── mazarbul@0.0.0
+├── package.json
+├── package-lock.json
+├── postcss.config.js
+├── project_tree.txt
+├── public
+├── src
+│   ├── App.jsx
+│   ├── assets
+│   │   ├── fonts
+│   │   └── images
+│   ├── components
+│   │   ├── dashboard
+│   │   │   ├── ActivityCalendar
+│   │   │   │   └── ActivityCalendar.jsx
+│   │   │   └── CollectionList
+│   │   │       └── CollectionList.jsx
+│   │   ├── layout
+│   │   │   ├── HeaderBar
+│   │   │   │   └── HeaderBar.jsx
+│   │   │   └── SectionHeader
+│   │   │       └── SectionHeader.jsx
+│   │   ├── media
+│   │   │   ├── CommunityReviewsFeed
+│   │   │   │   └── CommunityReviewsFeed.jsx
+│   │   │   ├── TechnicalDetails
+│   │   │   │   └── TechnicalDetails.jsx
+│   │   │   └── UserReviewEditor
+│   │   │       └── UserReviewEditor.jsx
+│   │   ├── ui
+│   │   │   ├── AvatarStack
+│   │   │   │   └── AvatarStack.jsx
+│   │   │   ├── MediaBadge
+│   │   │   │   └── MediaBadge.jsx
+│   │   │   ├── MediaCard
+│   │   │   │   └── MediaCard.jsx
+│   │   │   ├── RatingStars
+│   │   │   │   └── RatingStars.jsx
+│   │   │   └── ReviewsPanel
+│   │   │       └── ReviewsPanel.jsx
+│   │   └── user
+│   │       ├── BadgesRibbon
+│   │       │   └── BadgesRibbon.jsx
+│   │       ├── FavoritesSection
+│   │       │   └── FavoritesSection.jsx
+│   │       ├── ProfileHeader
+│   │       │   └── ProfileHeader.jsx
+│   │       └── ReviewsPanel
+│   │           └── ReviewsPanel.jsx
+│   ├── hooks
+│   │   ├── useI18n.js
+│   │   ├── useTheme.js
+│   │   └── useUserProfileData.js
+│   ├── main.jsx
+│   ├── pages
+│   │   ├── DashboardPage
+│   │   │   └── DashboardPage.jsx
+│   │   ├── HomePage
+│   │   │   └── HomePage.jsx
+│   │   ├── MediaDetailsPage
+│   │   │   └── MediaDetailsPage.jsx
+│   │   └── ProfilePage
+│   │       └── ProfilePage.jsx
+│   ├── services
+│   ├── styles
+│   │   └── main.css
+│   └── utils
+│       └── formatters.js
+├── tailwind.config.js
+├── vite
+└── vite.config.js
+
+37 directories, 37 files
