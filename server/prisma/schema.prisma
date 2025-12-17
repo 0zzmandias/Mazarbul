@@ -7,12 +7,123 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==========================================
+// USUÁRIOS E PERFIL
+// ==========================================
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String?
-  handle    String   @unique
-  password  String
+  handle    String   @unique // O @usuario (ex: @maris)
+  password  String   // Senha criptografada (bcrypt)
+
+  // Perfil Público (Adicionados nesta Sprint)
+  bio       String?  @db.Text
+  avatarUrl String?  // URL da imagem
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  reviews      Review[]
+  achievements UserAchievement[]
+
+  // Lista de Favoritos (Relação N:N com MediaReference)
+  favorites    MediaReference[]  @relation("UserFavorites")
+}
+
+// ==========================================
+// MÍDIA (CACHE & CATALOGO)
+// ==========================================
+// Aqui guardamos apenas o que foi citado/usado por algum usuário.
+// Funciona como um Cache inteligente das APIs externas.
+
+model MediaReference {
+  // ID Interno: Será o ID da fonte principal (ex: "tmdb_550", "ol_OL123W")
+  id          String   @id
+
+  // Tipo de Mídia: "filme", "livro", "jogo", "album"
+  type        String
+
+  // Metadados Flexíveis para Multi-idioma
+  // Ex: { "PT": "Duna", "EN": "Dune" }
+  titles      Json
+
+  // Ex: { "PT": "Sinopse em pt...", "EN": "Synopsis..." }
+  synopses    Json?
+
+  posterUrl   String?
+  backdropUrl String?
+
+  releaseYear Int?     // Essencial para troféus de "Clássicos"
+
+  // Tags normalizadas para Gamificação (ex: ["tag.scifi", "tag.horror"])
+  // O Backend converte os dados da API externa para este formato antes de salvar.
+  tags        String[]
+
+  // SEGURANÇA FUTURA (Estratégia Híbrida):
+  // Guardamos IDs secundários aqui. Ex: { "isbn": "978...", "googleBooksId": "xyz" }
+  externalIds Json?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Quem favoritou isso?
+  favoritedBy User[]   @relation("UserFavorites")
+
+  // Reviews dessa mídia
+  reviews     Review[]
+
+  @@index([type]) // Para buscar rápido "todos os livros cadastrados"
+}
+
+// ==========================================
+// REVIEWS E AVALIAÇÕES
+// ==========================================
+
+model Review {
+  id        String   @id @default(uuid())
+
+  rating    Float    // Nota de 0 a 10 (ex: 9.5)
+  content   String?  @db.Text // O texto da review
+
+  // Tags específicas DA REVIEW (ex: "plot-twist", "atuacao", "ritmo-lento")
+  // Diferente das tags da Mídia (Gênero).
+  tags      String[]
+
+  containsSpoilers Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Dono da Review
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  // Mídia Avaliada
+  mediaId   String
+  media     MediaReference @relation(fields: [mediaId], references: [id])
+}
+
+// ==========================================
+// GAMIFICAÇÃO (TROFÉUS)
+// ==========================================
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+
+  // ID fixo do troféu definido no Front (ex: "horror-business", "the-one")
+  achievementId String
+
+  unlockedAt    DateTime @default(now())
+
+  // Para barras de progresso (ex: 5/10 livros lidos)
+  progress      Int      @default(0)
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  // Garante que o usuário só ganha o troféu "horror-business" uma vez
+  @@unique([userId, achievementId])
 }
