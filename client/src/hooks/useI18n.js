@@ -31,7 +31,7 @@ const I18N = {
     // --- CLUBES (GERAL) ---
     "clubs.title": "Explorar Clubes",
     "clubs.subtitle":
-      "Encontre sua tribo, participe de leituras conjuntas e discuta suas obras favoritas.",
+    "Encontre sua tribo, participe de leituras conjuntas e discuta suas obras favoritas.",
     "club.reading_now": "Lendo Agora",
     "action.visit_club": "Visitar Clube",
     "clubs.search_placeholder": "Buscar clubes por nome ou tag...",
@@ -124,54 +124,54 @@ const I18N = {
     "section.achievements": "Conquistas",
     "achievements.title": "Conquistas",
     "achievements.subtitle":
-      "Acompanhe sua jornada através do multiverso cultural.",
+    "Acompanhe sua jornada através do multiverso cultural.",
     "achievements.progress": "Progresso",
     "achievements.locked": "Bloqueado",
     "achievement.desc.the-one":
-      "Registre sua jornada literária ao longo de um ano.",
+    "Registre sua jornada literária ao longo de um ano.",
     "achievement.desc.narya":
-      "Registre sua jornada musical ao longo de um ano.",
+    "Registre sua jornada musical ao longo de um ano.",
     "achievement.desc.vilya":
-      "Registre sua jornada cinematográfica ao longo de um ano.",
+    "Registre sua jornada cinematográfica ao longo de um ano.",
     "achievement.desc.nenya":
-      "Registre sua jornada nos games ao longo de um ano.",
+    "Registre sua jornada nos games ao longo de um ano.",
     "achievement.desc.life-universe-everything":
-      "Complete o ciclo de obras de Ficção Científica em livros, filmes e jogos.",
+    "Complete o ciclo de obras de Ficção Científica em livros, filmes e jogos.",
     "achievement.desc.horror-business":
-      "Complete o ciclo de obras de Terror em livros, filmes e jogos.",
+    "Complete o ciclo de obras de Terror em livros, filmes e jogos.",
     "achievement.desc.wood-between-worlds":
-      "Complete o ciclo de obras de Fantasia em livros, filmes e jogos.",
+    "Complete o ciclo de obras de Fantasia em livros, filmes e jogos.",
     "achievement.desc.once-upon-time-west":
-      "Complete o ciclo de obras de Western em livros, filmes e jogos.",
+    "Complete o ciclo de obras de Western em livros, filmes e jogos.",
     "achievement.desc.kagemusha":
-      "Complete o ciclo de obras Eastern em livros, filmes e jogos.",
+    "Complete o ciclo de obras Eastern em livros, filmes e jogos.",
     "achievement.desc.help-me-eros":
-      "Complete o ciclo de obras de Romance em livros, filmes e jogos.",
+    "Complete o ciclo de obras de Romance em livros, filmes e jogos.",
     "achievement.desc.guernica":
-      "Complete o ciclo de obras de Guerra em livros, filmes e jogos.",
+    "Complete o ciclo de obras de Guerra em livros, filmes e jogos.",
     "achievement.desc.nighthawks":
-      "Complete o ciclo de obras Noir em livros, filmes e jogos.",
+    "Complete o ciclo de obras Noir em livros, filmes e jogos.",
     "achievement.desc.perche-leggere-classici":
-      "Analise Livros anteriores a 1900, Filmes anteriores a 1950, Álbuns anteriores a 1970 ou Jogos anteriores a 2000.",
+    "Analise Livros anteriores a 1900, Filmes anteriores a 1950, Álbuns anteriores a 1970 ou Jogos anteriores a 2000.",
     "achievement.desc.zeitgeist":
-      "Mantenha-se atualizado analisando obras lançadas na última década.",
+    "Mantenha-se atualizado analisando obras lançadas na última década.",
     "achievement.desc.moritarnon":
-      "Descubra e analise obras que sofreram censura ou banimento histórico.",
+    "Descubra e analise obras que sofreram censura ou banimento histórico.",
     "achievement.desc.arda":
-      "Complete o ciclo de análises de obras de todos os 6 continentes.",
+    "Complete o ciclo de análises de obras de todos os 6 continentes.",
     "achievement.desc.rhun":
-      "Amplie horizontes com obras de países fora do eixo do Norte Global.",
+    "Amplie horizontes com obras de países fora do eixo do Norte Global.",
     "achievement.desc.khazad-dum":
-      "Escave profundamente em busca de obras independentes ou de nicho.",
+    "Escave profundamente em busca de obras independentes ou de nicho.",
     "achievement.desc.manwe":
-      "Defenda uma obra incompreendida: Nota pessoal alta vs. Média geral baixa.",
+    "Defenda uma obra incompreendida: Nota pessoal alta vs. Média geral baixa.",
     "achievement.desc.melkor":
-      "Critique um favorito das massas: Nota pessoal baixa vs. Média geral alta.",
+    "Critique um favorito das massas: Nota pessoal baixa vs. Média geral alta.",
     "achievement.desc.trivium": "Complete a jornada de uma trilogia inteira.",
     "achievement.desc.quadrivium":
-      "Complete a jornada de uma tetralogia inteira.",
+    "Complete a jornada de uma tetralogia inteira.",
     "achievement.desc.dagor-dagorath":
-      "Chegue ao fim de uma saga de livros, filmes ou jogos.",
+    "Chegue ao fim de uma saga de livros, filmes ou jogos.",
 
     // --- AÇÕES E LABELS ---
     "action.explore": "Explorar",
@@ -190,6 +190,10 @@ const I18N = {
     "details.year": "Ano",
     "details.country": "País",
 
+    "details.not_informed": "Não informado",
+    "details.synopsis_not_available": "Sinopse não disponível neste idioma.",
+    "details.no_synopsis": "Sem sinopse.",
+
     // --- LISTS ---
     "list.actions_title": "Ações",
     "list.owner_prefix": "Lista de",
@@ -200,9 +204,9 @@ const I18N = {
     "list.delete_mode": "Apagar Listas",
     "list.select_prompt": "Selecione uma lista na coluna da direita",
     "list.select_to_edit_prompt":
-      "Selecione uma lista na coluna da direita para editar.",
+    "Selecione uma lista na coluna da direita para editar.",
     "list.select_to_delete_prompt":
-      "Selecione uma lista na coluna da direita para apagar.",
+    "Selecione uma lista na coluna da direita para apagar.",
     "list.or_create_prompt": "ou crie uma nova.",
     "list.form_name": "Nome",
     "list.form_name_placeholder": "Ex: Clássicos da Fantasia",
@@ -290,7 +294,7 @@ const I18N = {
     "settings.profile.lastname": "Sobrenome",
     "settings.profile.username": "Nome de usuário (@)",
     "settings.profile.username.locked":
-      "Nomes de usuário não podem ser alterados.",
+    "Nomes de usuário não podem ser alterados.",
     "settings.profile.bio": "Sua Bio",
     "settings.profile.bio.placeholder": "Escreva um pouco sobre você...",
     "settings.profile.save_button": "Salvar alterações do Perfil",
@@ -298,7 +302,7 @@ const I18N = {
     "settings.profile.save_button.saved": "Salvo!",
     "settings.account.title": "Conta",
     "settings.account.subtitle":
-      "Gerencie suas informações de login e segurança.",
+    "Gerencie suas informações de login e segurança.",
     "settings.account.email": "Email",
     "settings.account.email.subtitle": "Seu email de login é",
     "settings.account.email.change_button": "Mudar Email",
@@ -313,22 +317,22 @@ const I18N = {
     "settings.account.delete.text": "Esta ação é permanente e irreversível.",
     "settings.preferences.title": "Preferências",
     "settings.preferences.subtitle":
-      "Controle a privacidade do seu perfil e notificações.",
+    "Controle a privacidade do seu perfil e notificações.",
     "settings.preferences.privacy": "Privacidade",
     "settings.preferences.privacy.private_profile": "Perfil Privado",
     "settings.preferences.privacy.private_profile.desc":
-      "Se ativado, seu perfil e atividades só serão visíveis para você.",
+    "Se ativado, seu perfil e atividades só serão visíveis para você.",
     "settings.preferences.notifications": "Notificações",
     "settings.preferences.notifications.email.title": "Notificações por Email",
     "settings.preferences.notifications.email.desc":
-      "Receber emails quando alguém seguir você ou comentar em suas reviews.",
+    "Receber emails quando alguém seguir você ou comentar em suas reviews.",
     "settings.preferences.save_button": "Salvar Preferências",
     "form.firstname": "Nome",
     "form.lastname": "Apellido",
     "form.email": "Email",
     "form.username": "Nome de usuário (@)",
     "form.username_rules":
-      "4-20 caracteres. Apenas letras, números e underscores (_).",
+    "4-20 caracteres. Apenas letras, números e underscores (_).",
     "form.password": "Senha",
     "form.confirm_password": "Confirmar senha",
     "form.placeholder.review": "Escreva sua review...",
@@ -347,12 +351,12 @@ const I18N = {
     "register.login_link": "Faça login",
     "forgot.title": "Recuperar Senha",
     "forgot.subtitle":
-      "Insira seu e-mail e enviaremos um link para criar uma nova senha.",
+    "Insira seu e-mail e enviaremos um link para criar uma nova senha.",
     "forgot.button": "Enviar link de recuperação",
     "forgot.back_to_login": "Lembrou a senha? Voltar para o Login",
     "forgot.success_title": "Link enviado!",
     "forgot.success_text":
-      "Verifique sua caixa de entrada (e pasta de spam) nos próximos minutos.",
+    "Verifique sua caixa de entrada (e pasta de spam) nos próximos minutos.",
     "reset.title": "Crie sua nova senha",
     "reset.subtitle": "Quase lá! Insira sua nova senha abaixo.",
     "reset.button": "Salvar Nova Senha",
@@ -389,7 +393,7 @@ const I18N = {
     // --- CLUBS (GENERAL) ---
     "clubs.title": "Explore Clubs",
     "clubs.subtitle":
-      "Find your tribe, join group readings, and discuss your favorite works.",
+    "Find your tribe, join group readings, and discuss your favorite works.",
     "club.reading_now": "Reading Now",
     "action.visit_club": "Visit Club",
     "clubs.search_placeholder": "Search clubs by name or tag...",
@@ -481,7 +485,7 @@ const I18N = {
     "section.achievements": "Achievements",
     "achievements.title": "Achievements",
     "achievements.subtitle":
-      "Track your journey through the cultural multiverse.",
+    "Track your journey through the cultural multiverse.",
     "achievements.progress": "Progress",
     "achievements.locked": "Locked",
     "achievement.desc.the-one": "Log your literary journey over a year.",
@@ -489,40 +493,40 @@ const I18N = {
     "achievement.desc.vilya": "Log your cinematic journey over a year.",
     "achievement.desc.nenya": "Log your gaming journey over a year.",
     "achievement.desc.life-universe-everything":
-      "Complete the Sci-Fi works cycle in books, films, and games.",
+    "Complete the Sci-Fi works cycle in books, films, and games.",
     "achievement.desc.horror-business":
-      "Complete the Horror works cycle in books, films, and games.",
+    "Complete the Horror works cycle in books, films, and games.",
     "achievement.desc.wood-between-worlds":
-      "Complete the Fantasy works cycle in books, films, and games.",
+    "Complete the Fantasy works cycle in books, films, and games.",
     "achievement.desc.once-upon-time-west":
-      "Complete the Western works cycle in books, films, and games.",
+    "Complete the Western works cycle in books, films, and games.",
     "achievement.desc.kagemusha":
-      "Complete the Eastern works cycle in books, films, and games.",
+    "Complete the Eastern works cycle in books, films, and games.",
     "achievement.desc.help-me-eros":
-      "Complete the Romance works cycle in books, films, and games.",
+    "Complete the Romance works cycle in books, films, and games.",
     "achievement.desc.guernica":
-      "Complete the War works cycle in books, films, and games.",
+    "Complete the War works cycle in books, films, and games.",
     "achievement.desc.nighthawks":
-      "Complete the Noir works cycle in books, films, and games.",
+    "Complete the Noir works cycle in books, films, and games.",
     "achievement.desc.perche-leggere-classici":
-      "Review Books pre-1900, Films pre-1950, Albums pre-1970, or Games pre-2000.",
+    "Review Books pre-1900, Films pre-1950, Albums pre-1970, or Games pre-2000.",
     "achievement.desc.zeitgeist":
-      "Stay current by reviewing works released in the last decade.",
+    "Stay current by reviewing works released in the last decade.",
     "achievement.desc.moritarnon":
-      "Discover and review historically banned or censored works.",
+    "Discover and review historically banned or censored works.",
     "achievement.desc.arda":
-      "Complete the analysis cycle of works from all 6 continents.",
+    "Complete the analysis cycle of works from all 6 continents.",
     "achievement.desc.rhun":
-      "Broaden horizons with works from countries outside the Global North.",
+    "Broaden horizons with works from countries outside the Global North.",
     "achievement.desc.khazad-dum": "Dig deep for independent or niche works.",
     "achievement.desc.manwe":
-      "Defend a misunderstood work: High personal score vs. Low general average.",
+    "Defend a misunderstood work: High personal score vs. Low general average.",
     "achievement.desc.melkor":
-      "Critique a crowd favorite: Low personal score vs. High general average.",
+    "Critique a crowd favorite: Low personal score vs. High general average.",
     "achievement.desc.trivium": "Complete the journey of a full trilogy.",
     "achievement.desc.quadrivium": "Complete the journey of a full tetralogy.",
     "achievement.desc.dagor-dagorath":
-      "Reach the end of a book, film, or game saga.",
+    "Reach the end of a book, film, or game saga.",
 
     // --- ACTIONS & LABELS ---
     "action.explore": "Explore",
@@ -541,6 +545,10 @@ const I18N = {
     "details.year": "Year",
     "details.country": "Country",
 
+    "details.not_informed": "Not informed",
+    "details.synopsis_not_available": "Synopsis not available in this language.",
+    "details.no_synopsis": "No synopsis.",
+
     // --- LISTS ---
     "list.actions_title": "Actions",
     "list.owner_prefix": "List by",
@@ -551,9 +559,9 @@ const I18N = {
     "list.delete_mode": "Delete Lists",
     "list.select_prompt": "Select a list from the right column",
     "list.select_to_edit_prompt":
-      "Select a list from the right column to edit.",
+    "Select a list from the right column to edit.",
     "list.select_to_delete_prompt":
-      "Select a list from the right column to delete.",
+    "Select a list from the right column to delete.",
     "list.or_create_prompt": "or create a new one.",
     "list.form_name": "Name",
     "list.form_name_placeholder": "Ex: Fantasy Classics",
@@ -660,25 +668,25 @@ const I18N = {
     "settings.account.danger_zone": "Danger Zone",
     "settings.account.delete.button": "Delete my account",
     "settings.account.delete.text":
-      "This action is permanent and irreversible.",
+    "This action is permanent and irreversible.",
     "settings.preferences.title": "Preferences",
     "settings.preferences.subtitle":
-      "Control your profile privacy and notifications.",
+    "Control your profile privacy and notifications.",
     "settings.preferences.privacy": "Privacy",
     "settings.preferences.privacy.private_profile": "Private Profile",
     "settings.preferences.privacy.private_profile.desc":
-      "If enabled, your profile and activities will only be visible to you.",
+    "If enabled, your profile and activities will only be visible to you.",
     "settings.preferences.notifications": "Notifications",
     "settings.preferences.notifications.email.title": "Email Notifications",
     "settings.preferences.notifications.email.desc":
-      "Receive emails when someone follows you or comments on your reviews.",
+    "Receive emails when someone follows you or comments on your reviews.",
     "settings.preferences.save_button": "Save Preferences",
     "form.firstname": "First Name",
     "form.lastname": "Last Name",
     "form.email": "Email",
     "form.username": "Username (@)",
     "form.username_rules":
-      "4-20 characters. Letters, numbers, and underscores (_) only.",
+    "4-20 characters. Letters, numbers, and underscores (_) only.",
     "form.password": "Password",
     "form.confirm_password": "Confirm password",
     "form.placeholder.review": "Write your review...",
@@ -697,12 +705,12 @@ const I18N = {
     "register.login_link": "Sign in",
     "forgot.title": "Recover Password",
     "forgot.subtitle":
-      "Enter your email and we'll send a link to create a new password.",
+    "Enter your email and we'll send a link to create a new password.",
     "forgot.button": "Send recovery link",
     "forgot.back_to_login": "Remembered your password? Back to Login",
     "forgot.success_title": "Link sent!",
     "forgot.success_text":
-      "Check your inbox (and spam folder) in the next few minutes.",
+    "Check your inbox (and spam folder) in the next few minutes.",
     "reset.title": "Create your new password",
     "reset.subtitle": "Almost there! Enter your new password below.",
     "reset.button": "Save New Password",
@@ -739,7 +747,7 @@ const I18N = {
     // --- CLUBES ---
     "clubs.title": "Explorar Clubes",
     "clubs.subtitle":
-      "Encuentra tu tribu, participa en lecturas conjuntas y discute tus obras favoritas.",
+    "Encuentra tu tribu, participa en lecturas conjuntas y discute tus obras favoritas.",
     "club.reading_now": "Leyendo Ahora",
     "action.visit_club": "Visitar Club",
     "clubs.search_placeholder": "Buscar clubes por nombre o etiqueta...",
@@ -835,49 +843,49 @@ const I18N = {
     "achievements.progress": "Progreso",
     "achievements.locked": "Bloqueado",
     "achievement.desc.the-one":
-      "Registra tu viaje literario a lo largo de un año.",
+    "Registra tu viaje literario a lo largo de un año.",
     "achievement.desc.narya": "Registra tu viaje musical a lo largo de un año.",
     "achievement.desc.vilya":
-      "Registra tu viaje cinematográfico a lo largo de un año.",
+    "Registra tu viaje cinematográfico a lo largo de un año.",
     "achievement.desc.nenya":
-      "Registra tu viaje en videojuegos a lo largo de un año.",
+    "Registra tu viaje en videojuegos a lo largo de un año.",
     "achievement.desc.life-universe-everything":
-      "Completa el ciclo de obras de Ciencia Ficción en libros, películas y juegos.",
+    "Completa el ciclo de obras de Ciencia Ficción en libros, películas y juegos.",
     "achievement.desc.horror-business":
-      "Completa el ciclo de obras de Terror en libros, películas y juegos.",
+    "Completa el ciclo de obras de Terror en libros, películas y juegos.",
     "achievement.desc.wood-between-worlds":
-      "Completa el ciclo de obras de Fantasía en libros, películas y juegos.",
+    "Completa el ciclo de obras de Fantasía en libros, películas y juegos.",
     "achievement.desc.once-upon-time-west":
-      "Completa el ciclo de obras Western en libros, películas y juegos.",
+    "Completa el ciclo de obras Western en libros, películas y juegos.",
     "achievement.desc.kagemusha":
-      "Completa el ciclo de obras Orientales en libros, películas y juegos.",
+    "Completa el ciclo de obras Orientales en libros, películas y juegos.",
     "achievement.desc.help-me-eros":
-      "Completa el ciclo de obras de Romance en libros, películas y juegos.",
+    "Completa el ciclo de obras de Romance en libros, películas y juegos.",
     "achievement.desc.guernica":
-      "Completa el ciclo de obras de Guerra en libros, películas y juegos.",
+    "Completa el ciclo de obras de Guerra en libros, películas y juegos.",
     "achievement.desc.nighthawks":
-      "Completa el ciclo de obras Noir en libros, películas y juegos.",
+    "Completa el ciclo de obras Noir en libros, películas y juegos.",
     "achievement.desc.perche-leggere-classici":
-      "Analiza Libros anteriores a 1900, Películas anteriores a 1950, Álbumes anteriores a 1970 o Juegos anteriores a 2000.",
+    "Analiza Libros anteriores a 1900, Películas anteriores a 1950, Álbumes anteriores a 1970 o Juegos anteriores a 2000.",
     "achievement.desc.zeitgeist":
-      "Mantente actualizado analizando obras lanzadas en la última década.",
+    "Mantente actualizado analizando obras lanzadas en la última década.",
     "achievement.desc.moritarnon":
-      "Descubre y analiza obras que sufrieron censura o prohibición histórica.",
+    "Descubre y analiza obras que sufrieron censura o prohibición histórica.",
     "achievement.desc.arda":
-      "Completa el ciclo de análisis de obras de los 6 continentes.",
+    "Completa el ciclo de análisis de obras de los 6 continentes.",
     "achievement.desc.rhun":
-      "Amplía horizontes con obras de países fuera del eje del Norte Global.",
+    "Amplía horizontes con obras de países fuera del eje del Norte Global.",
     "achievement.desc.khazad-dum":
-      "Excava profundamente en busca de obras independientes o de nicho.",
+    "Excava profundamente en busca de obras independientes o de nicho.",
     "achievement.desc.manwe":
-      "Defiende una obra incomprendida: Nota personal alta vs. Promedio general bajo.",
+    "Defiende una obra incomprendida: Nota personal alta vs. Promedio general bajo.",
     "achievement.desc.melkor":
-      "Critica un favorito de las masas: Nota personal baja vs. Promedio general alto.",
+    "Critica un favorito de las masas: Nota personal baja vs. Promedio general alto.",
     "achievement.desc.trivium": "Completa el viaje de una trilogía entera.",
     "achievement.desc.quadrivium":
-      "Completa el viaje de una tetralogía entera.",
+    "Completa el viaje de una tetralogía entera.",
     "achievement.desc.dagor-dagorath":
-      "Llega al final de una saga de libros, películas o juegos.",
+    "Llega al final de una saga de libros, películas o juegos.",
 
     // --- ACTIONS & LABELS ---
     "action.explore": "Explorar",
@@ -896,6 +904,10 @@ const I18N = {
     "details.year": "Año",
     "details.country": "País",
 
+    "details.not_informed": "No informado",
+    "details.synopsis_not_available": "Sinopsis no disponible en este idioma.",
+    "details.no_synopsis": "Sin sinopsis.",
+
     // --- LISTS ---
     "list.actions_title": "Acciones",
     "list.owner_prefix": "Lista de",
@@ -906,9 +918,9 @@ const I18N = {
     "list.delete_mode": "Eliminar Listas",
     "list.select_prompt": "Selecciona una lista de la derecha",
     "list.select_to_edit_prompt":
-      "Selecciona una lista de la derecha para editar.",
+    "Selecciona una lista de la derecha para editar.",
     "list.select_to_delete_prompt":
-      "Selecciona una lista de la derecha para eliminar.",
+    "Selecciona una lista de la derecha para eliminar.",
     "list.or_create_prompt": "o crea una nueva.",
     "list.form_name": "Nombre",
     "list.form_name_placeholder": "Ej: Clássicos de Fantasía",
@@ -996,7 +1008,7 @@ const I18N = {
     "settings.profile.lastname": "Apellido",
     "settings.profile.username": "Nombre de usuario (@)",
     "settings.profile.username.locked":
-      "Los nombres de usuario no se pueden cambiar.",
+    "Los nombres de usuario no se pueden cambiar.",
     "settings.profile.bio": "Tu Biografía",
     "settings.profile.bio.placeholder": "Escribe un poco sobre ti...",
     "settings.profile.save_button": "Guardar cambios del Perfil",
@@ -1004,7 +1016,7 @@ const I18N = {
     "settings.profile.save_button.saved": "¡Guardado!",
     "settings.account.title": "Cuenta",
     "settings.account.subtitle":
-      "Gestiona tu información de inicio de sesión y seguridad.",
+    "Gestiona tu información de inicio de sesión y seguridad.",
     "settings.account.email": "Correo electrónico",
     "settings.account.email.subtitle": "Tu correo de inicio de sesión es",
     "settings.account.email.change_button": "Cambiar Correo",
@@ -1019,23 +1031,23 @@ const I18N = {
     "settings.account.delete.text": "Esta acción es permanente e irreversible.",
     "settings.preferences.title": "Preferencias",
     "settings.preferences.subtitle":
-      "Controla la privacidad de tu perfil y notificaciones.",
+    "Controla la privacidad de tu perfil y notificaciones.",
     "settings.preferences.privacy": "Privacidad",
     "settings.preferences.privacy.private_profile": "Perfil Privado",
     "settings.preferences.privacy.private_profile.desc":
-      "Si está activado, tu perfil y actividades solo serán visibles para ti.",
+    "Si está activado, tu perfil y actividades solo serán visibles para ti.",
     "settings.preferences.notifications": "Notificaciones",
     "settings.preferences.notifications.email.title":
-      "Notificaciones por Correo",
+    "Notificaciones por Correo",
     "settings.preferences.notifications.email.desc":
-      "Recibir correos cuando alguien te siga o comente en tus reseñas.",
+    "Recibir correos cuando alguien te siga o comente en tus reseñas.",
     "settings.preferences.save_button": "Guardar Preferencias",
     "form.firstname": "Nombre",
     "form.lastname": "Apellido",
     "form.email": "Correo electrónico",
     "form.username": "Nombre de usuario (@)",
     "form.username_rules":
-      "4-20 caracteres. Solo letras, números y guiones bajos (_).",
+    "4-20 caracteres. Solo letras, números y guiones bajos (_).",
     "form.password": "Contraseña",
     "form.confirm_password": "Confirmar contraseña",
     "form.placeholder.review": "Escribe tu reseña...",
@@ -1054,16 +1066,16 @@ const I18N = {
     "register.login_link": "Iniciar sesión",
     "forgot.title": "Recuperar Contraseña",
     "forgot.subtitle":
-      "Ingresa tu correo y te enviaremos un enlace para crear una nueva contraseña.",
+    "Ingresa tu correo y te enviaremos un enlace para crear una nueva contraseña.",
     "forgot.button": "Enviar enlace de recuperación",
     "forgot.back_to_login":
-      "¿Recordaste tu contraseña? Volver a Iniciar Sesión",
+    "¿Recordaste tu contraseña? Volver a Iniciar Sesión",
     "forgot.success_title": "¡Enlace enviado!",
     "forgot.success_text":
-      "Revisa tu bandeja de entrada (y la carpeta de spam) en los próximos minutos.",
+    "Revisa tu bandeja de entrada (y la carpeta de spam) en los próximos minutos.",
     "reset.title": "Crea tu nueva contraseña",
     "reset.subtitle":
-      "¡Casi listo! Ingresa tu nueva contraseña a continuación.",
+    "¡Casi listo! Ingresa tu nueva contraseña a continuación.",
     "reset.button": "Guardar Nueva Contraseña",
     "reset.success.title": "¡Contraseña Restablecida!",
     "reset.success.subtitle": "Tu contraseña ha sido cambiada exitosamente.",
@@ -1087,8 +1099,8 @@ export function useI18n() {
     }
   }, [lang]);
 
-  const t = (key) => {
-    return (I18N[lang] && I18N[lang][key]) || I18N.PT[key] || key;
+  const t = (key, fallback) => {
+    return (I18N[lang] && I18N[lang][key]) || I18N.PT[key] || fallback || key;
   };
 
   return { lang, setLang, t };

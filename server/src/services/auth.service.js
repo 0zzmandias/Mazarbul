@@ -13,7 +13,7 @@ const generateToken = (userId) => {
 export const registerUser = async (data) => {
     const { name, email, handle, password } = data;
 
-    // 1. Verificar se usuário já existe (email ou handle)
+    // 1. Verificar se usuário já existe
     const userExists = await prisma.user.findFirst({
         where: {
             OR: [{ email }, { handle }]
@@ -38,12 +38,15 @@ export const registerUser = async (data) => {
         },
     });
 
-    // 4. Retornar dados (sem a senha!)
+    // 4. Retornar dados ESTRUTURADOS (user + token separados)
     return {
-        id: user.id,
-        name: user.name,
-        handle: user.handle,
-        email: user.email,
+        user: {
+            id: user.id,
+            name: user.name,
+            handle: user.handle,
+            email: user.email,
+            avatarUrl: user.avatarUrl || null, // Garante que o campo vá, mesmo vazio
+        },
         token: generateToken(user.id),
     };
 };
@@ -63,12 +66,15 @@ export const loginUser = async (email, password) => {
         throw new Error('Credenciais inválidas.');
     }
 
-    // 3. Retornar dados e token
+    // 3. Retornar dados ESTRUTURADOS
     return {
-        id: user.id,
-        name: user.name,
-        handle: user.handle,
-        email: user.email,
+        user: {
+            id: user.id,
+            name: user.name,
+            handle: user.handle,
+            email: user.email,
+            avatarUrl: user.avatarUrl || null,
+        },
         token: generateToken(user.id),
     };
 };

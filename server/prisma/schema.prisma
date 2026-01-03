@@ -26,7 +26,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relacionamentos
-  reviews      Review[]
+  reviews     Review[]
   achievements UserAchievement[]
 
   // Lista de Favoritos (Relação N:N com MediaReference)
@@ -56,7 +56,23 @@ model MediaReference {
   posterUrl   String?
   backdropUrl String?
 
-  releaseYear Int?     // Essencial para troféus de "Clássicos"
+  releaseYear Int?      // Essencial para troféus de "Clássicos"
+
+  // === NOVOS CAMPOS TÉCNICOS ===
+  runtime     Int?      // Duração em minutos
+  director    String?   // Nome do diretor (ou desenvolvedor principal)
+
+  // Armazena os nomes JÁ traduzidos vindos da API.
+  // Ex: { PT: ["Ação", "Terror"], EN: ["Action", "Horror"] }
+  genres      Json?
+
+  // Ex: { PT: ["Estados Unidos"], EN: ["United States"] }
+  countries   Json?
+
+  // === NOVO CAMPO FLEXÍVEL ===
+  // Guarda dados específicos de cada mídia (Páginas, Plataformas, Tracks)
+  details     Json?
+  // ===========================
 
   // Tags normalizadas para Gamificação (ex: ["tag.scifi", "tag.horror"])
   // O Backend converte os dados da API externa para este formato antes de salvar.

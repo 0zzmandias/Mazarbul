@@ -1,106 +1,143 @@
-import { PrismaClient } from '@prisma/client';
-import { searchMovies, getMovieData } from '../utils/tmdb.adapter.js';
-import { searchGames, getGameData } from '../utils/rawg.adapter.js';
-import { searchBooks, getBookData } from '../utils/books.adapter.js';
-import { searchAlbums, getAlbumData } from '../utils/lastfm.adapter.js';
+import prisma from '../lib/prisma.js';
+import * as tmdb from '../utils/tmdb.adapter.js';
+import * as rawg from '../utils/rawg.adapter.js';
+import * as books from '../utils/books.adapter.js';
+import * as lastfm from '../utils/lastfm.adapter.js';
 
-const prisma = new PrismaClient();
-
-// ==========================================
-// 1. BUSCA UNIFICADA (SEARCH)
-// ==========================================
 export const searchMedia = async (req, res) => {
+    const { q, type } = req.query;
+
+    if (!q) {
+        return res.status(400).json({ error: "Query 'q' é obrigatória" });
+    }
+
     try {
-        const { q, type } = req.query;
-
-        if (!q) {
-            return res.status(400).json({ error: "Termo de busca (q) é obrigatório." });
-        }
-
         let results = [];
 
-        // Decide qual API chamar com base no filtro 'type'
         switch (type) {
             case 'filme':
-                results = await searchMovies(q);
+                results = await tmdb.searchMovies(q);
                 break;
             case 'jogo':
-                results = await searchGames(q);
+                results = await rawg.searchGames(q);
                 break;
             case 'livro':
-                results = await searchBooks(q);
+                results = await books.searchBooks(q);
                 break;
             case 'album':
-                results = await searchAlbums(q);
+                results = await lastfm.searchAlbums(q);
                 break;
             default:
-                // Se não vier tipo (ex: busca global), poderíamos buscar todos,
-                // mas por performance/limites de API, vamos pedir que o front especifique.
-                return res.status(400).json({ error: "Tipo de mídia inválido ou não informado." });
+                results = await tmdb.searchMovies(q);
         }
 
-        res.json(results);
-
+        return res.json(results);
     } catch (error) {
         console.error("Erro na busca:", error);
-        res.status(500).json({ error: "Erro ao buscar mídia nas APIs externas." });
+        return res.status(500).json({ error: "Falha ao buscar mídia" });
     }
 };
 
-// ==========================================
-// 2. DETALHES + CACHE (GET BY ID)
-// ==========================================
 export const getMediaDetails = async (req, res) => {
+    const { id } = req.params;
+
+    const refreshParam = String(req.query.refresh || '').toLowerCase();
+    const forceRefresh = refreshParam === '1' || refreshParam === 'true' || refreshParam === 'yes';
+
     try {
-        const { id } = req.params; // Ex: "tmdb_550", "ol_OL123W"
-
-        // 1. VERIFICAR NO CACHE (BANCO LOCAL)
-        // Se já temos essa mídia salva, retornamos ela instantaneamente.
-        const existingMedia = await prisma.mediaReference.findUnique({
-            where: { id }
+        const cachedMedia = await prisma.mediaReference.findUnique({
+            where: { id },
+            include: {
+                reviews: {
+                    include: { user: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 5
+                },
+                _count: {
+                    select: { favoritedBy: true }
+                }
+            }
         });
 
-        if (existingMedia) {
-            console.log(`[CACHE] Retornando do banco: ${id}`);
-            return res.json(existingMedia);
+        if (cachedMedia && !forceRefresh) {
+            return res.json(cachedMedia);
         }
 
-        // 2. BUSCAR NA API EXTERNA (Se não estiver no cache)
-        console.log(`[API] Buscando externamente: ${id}`);
+        const [prefix, ...rest] = id.split('_');
+        const externalId = rest.join('_');
 
-        let mediaData = null;
+        let externalData = null;
 
-        // Identifica o prefixo do ID para saber qual adapter usar
-        if (id.startsWith('tmdb_')) {
-            const tmdbId = id.replace('tmdb_', '');
-            mediaData = await getMovieData(tmdbId);
-        }
-        else if (id.startsWith('rawg_')) {
-            const rawgId = id.replace('rawg_', '');
-            mediaData = await getGameData(rawgId);
-        }
-        else if (id.startsWith('ol_')) {
-            const workId = id.replace('ol_', '');
-            mediaData = await getBookData(workId);
-        }
-        else if (id.startsWith('lastfm_')) {
-            const mbid = id.replace('lastfm_', '');
-            mediaData = await getAlbumData(mbid);
-        }
-        else {
-            return res.status(400).json({ error: "ID de mídia inválido ou desconhecido." });
+        if (prefix === 'tmdb') {
+            externalData = await tmdb.getMovieData(externalId);
+        } else if (prefix === 'rawg') {
+            externalData = await rawg.getGameData(externalId);
+        } else if (prefix === 'google' || prefix === 'ol') {
+            externalData = await books.getBookData(id);
+        } else if (prefix === 'lastfm') {
+            externalData = await lastfm.getAlbumData(externalId);
+        } else {
+            return res.status(400).json({ error: "Fonte de mídia desconhecida." });
         }
 
-        // 3. SALVAR NO BANCO (CACHE)
-        // Salvamos agora para que a próxima leitura seja rápida e para permitir relações (reviews)
-        const savedMedia = await prisma.mediaReference.create({
-            data: mediaData
+        if (!externalData) {
+            return res.status(404).json({ error: "Mídia não encontrada na fonte externa." });
+        }
+
+        await prisma.mediaReference.upsert({
+            where: { id: externalData.id },
+            create: {
+                id: externalData.id,
+                type: externalData.type,
+                titles: externalData.titles,
+                synopses: externalData.synopses,
+                posterUrl: externalData.posterUrl,
+                backdropUrl: externalData.backdropUrl,
+                releaseYear: externalData.releaseYear,
+                tags: externalData.tags || [],
+                externalIds: externalData.externalIds || {},
+
+                runtime: externalData.runtime,
+                director: externalData.director,
+                genres: externalData.genres,
+                countries: externalData.countries,
+                details: externalData.details
+            },
+            update: {
+                type: externalData.type,
+                titles: externalData.titles,
+                synopses: externalData.synopses,
+                posterUrl: externalData.posterUrl,
+                backdropUrl: externalData.backdropUrl,
+                releaseYear: externalData.releaseYear,
+                tags: externalData.tags || [],
+                externalIds: externalData.externalIds || {},
+
+                runtime: externalData.runtime,
+                director: externalData.director,
+                genres: externalData.genres,
+                countries: externalData.countries,
+                details: externalData.details
+            }
         });
 
-        res.json(savedMedia);
+        const hydrated = await prisma.mediaReference.findUnique({
+            where: { id: externalData.id },
+            include: {
+                reviews: {
+                    include: { user: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 5
+                },
+                _count: {
+                    select: { favoritedBy: true }
+                }
+            }
+        });
 
+        return res.json(hydrated);
     } catch (error) {
-        console.error("Erro ao buscar detalhes:", error);
-        res.status(500).json({ error: "Não foi possível carregar os detalhes da mídia." });
+        console.error("Erro ao buscar detalhes da mídia:", error);
+        return res.status(500).json({ error: "Erro interno ao processar mídia." });
     }
 };

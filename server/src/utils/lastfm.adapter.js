@@ -2,87 +2,118 @@ import axios from 'axios';
 
 const LASTFM_API_URL = 'http://ws.audioscrobbler.com/2.0/';
 
-const lastfmClient = axios.create({
+const lastFmClient = axios.create({
     baseURL: LASTFM_API_URL
 });
 
-/**
- * Busca detalhes de um álbum
- */
 export const getAlbumData = async (mbid) => {
-    const apiKey = process.env.LASTFM_API_KEY; // Lendo chave agora
-    if (!apiKey) throw new Error("LASTFM_API_KEY não configurada no .env");
+    // A chave é lida em tempo de execução para evitar erros de inicialização
+    const apiKey = process.env.LASTFM_API_KEY;
+    if (!apiKey) throw new Error("LASTFM_API_KEY não configurada");
 
     try {
-        const response = await lastfmClient.get('', {
+        // Busca detalhes do álbum pelo MBID (MusicBrainz ID)
+        // Usamos lang: 'pt' para tentar trazer a bio traduzida se existir
+        const response = await lastFmClient.get('', {
             params: {
+                method: 'album.getinfo',
                 api_key: apiKey,
+                mbid: mbid,
                 format: 'json',
-                    method: 'album.getinfo',
-                    mbid: mbid
+                    lang: 'pt'
             }
         });
 
         const album = response.data.album;
-        if (!album) throw new Error("Álbum não encontrado.");
+        if (!album) throw new Error("Álbum não encontrado no LastFM.");
 
-        const tags = (album.toptags?.tag || []).map(t =>
-        `tag.${t.name.toLowerCase().replace(/\s+/g, '-')}`
-        );
+        // Data de lançamento (LastFM retorna string complexa as vezes, tentamos extrair ano)
+        const releaseYear = album.wiki?.published ? new Date(album.wiki.published).getFullYear() : null;
 
-        const images = album.image || [];
-        const bestImage = images.length > 0 ? images[images.length - 1]['#text'] : null;
+        // Tags (Gêneros)
+        const tagsList = album.tags?.tag?.map(t => t.name) || [];
+        // Normaliza para gamificação interna
+        const tags = tagsList.map(t => `tag.${t.toLowerCase().replace(/\s+/g, '-')}`);
 
-        const wikiContent = album.wiki ? album.wiki.content : "";
-        const cleanWiki = wikiContent.replace(/<a href=".*">.*<\/a>/g, '').trim();
+        // Lista de Faixas
+        const tracks = album.tracks?.track?.map(t => t.name) || [];
+
+        // Imagem (LastFM retorna array de tamanhos, pegamos a maior)
+        const imageObj = album.image?.find(i => i.size === 'extralarge') || album.image?.find(i => i.size === 'large');
+        const posterUrl = imageObj ? imageObj['#text'] : null;
 
         return {
             id: `lastfm_${mbid}`,
             type: 'album',
-            titles: { DEFAULT: album.name },
-            synopses: { EN: cleanWiki, PT: "" },
-            posterUrl: bestImage,
-            backdropUrl: null,
-            releaseYear: null,
-            tags: tags,
+
+            titles: {
+                PT: album.name, // LastFM geralmente não traduz nomes de álbum, repetimos
+                EN: album.name
+            },
+            synopses: {
+                PT: album.wiki?.summary || "Sem descrição disponível.",
+                EN: album.wiki?.summary || "No description available."
+            },
+
+            posterUrl: posterUrl,
+            backdropUrl: null, // LastFM não fornece backdrop (banner horizontal)
+
+            releaseYear,
+            runtime: null, // LastFM não soma a duração das faixas automaticamente na API padrão
+
+            // Mapeamento: Artista vai para Director
+            director: album.artist,
+
+            genres: {
+                PT: tagsList,
+                EN: tagsList
+            },
+
+            countries: null,
+
+            // Dados Específicos de Música
+            details: {
+                "Artista": album.artist,
+                "Faixas": tracks.length > 0 ? `${tracks.length} músicas` : null,
+                "Tracklist": tracks // Podemos usar isso no front se quisermos listar as músicas
+            },
+
+            tags,
             externalIds: {
                 mbid: mbid,
-                artist: album.artist
+                lastfm: album.url
             }
         };
 
     } catch (error) {
-        console.error("Erro no Last.fm Adapter:", error.message);
-        throw new Error("Falha ao buscar dados do álbum.");
+        console.error("Erro no LastFM Adapter:", error.message);
+        throw new Error("Falha ao buscar álbum.");
     }
 };
 
-/**
- * Busca álbuns pelo nome
- */
 export const searchAlbums = async (query) => {
     const apiKey = process.env.LASTFM_API_KEY;
     if (!apiKey) throw new Error("LASTFM_API_KEY não configurada");
 
-    const response = await lastfmClient.get('', {
+    const response = await lastFmClient.get('', {
         params: {
+            method: 'album.search',
             api_key: apiKey,
+            album: query,
             format: 'json',
-                method: 'album.search',
-                album: query,
                 limit: 10
         }
     });
 
-    const albums = response.data.results?.albummatches?.album || [];
-
-    return albums
-    .filter(a => a.mbid && a.mbid !== "")
+    // Filtramos resultados que não tenham MBID, pois precisamos dele para a página de detalhes
+    return response.data.results.albummatches.album
+    .filter(album => album.mbid && album.mbid !== "")
     .map(album => ({
         id: `lastfm_${album.mbid}`,
         title: album.name,
-        artist: album.artist,
-        poster: album.image && album.image[2] ? album.image[2]['#text'] : null,
-        type: 'album'
+        artist: album.artist, // Útil para mostrar "Nome do Album - Artista" na busca
+        year: '?', // Search do LastFM infelizmente não retorna ano
+        poster: album.image?.find(i => i.size === 'large')?.['#text'],
+                   type: 'album'
     }));
 };

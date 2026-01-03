@@ -19,9 +19,13 @@ export const getMovieData = async (tmdbId) => {
         // Adicionamos a api_key em cada requisição explicitamente
         const params = { api_key: apiKey };
 
+        // Requisições paralelas para pegar dados localizados
+        // append_to_response: 'credits' traz o diretor na chamada PT
         const [ptRes, enRes, esRes] = await Promise.all([
-            tmdbClient.get(`/movie/${tmdbId}`, { params: { ...params, language: 'pt-BR' } }),
-                                                        tmdbClient.get(`/movie/${tmdbId}`, { params: { ...params, language: 'en-US' } }),
+            tmdbClient.get(`/movie/${tmdbId}`, {
+                params: { ...params, language: 'pt-BR', append_to_response: 'credits' }
+            }),
+            tmdbClient.get(`/movie/${tmdbId}`, { params: { ...params, language: 'en-US' } }),
                                                         tmdbClient.get(`/movie/${tmdbId}`, { params: { ...params, language: 'es-ES' } })
         ]);
 
@@ -30,11 +34,25 @@ export const getMovieData = async (tmdbId) => {
         const esData = esRes.data;
 
         const releaseYear = ptData.release_date ? new Date(ptData.release_date).getFullYear() : null;
+
+        // Tags baseadas no Inglês (Padrão do sistema para Gamificação/Troféus)
+        // Mantemos isso para lógica interna.
         const tags = enData.genres.map(g => `tag.${g.name.toLowerCase().replace(/\s+/g, '-')}`);
+
+        // Extração do Diretor (da resposta PT)
+        const director = ptData.credits?.crew?.find(person => person.job === 'Director')?.name || null;
+
+        // === FUNÇÕES AUXILIARES ===
+        const getGenresList = (data) => data.genres?.map(g => g.name) || [];
+
+        // MUDANÇA AQUI: Pegamos o código ISO (ex: "US", "BR") em vez do nome em inglês
+        const getCountriesList = (data) => data.production_countries?.map(c => c.iso_3166_1) || [];
 
         return {
             id: `tmdb_${tmdbId}`,
             type: 'filme',
+
+            // Dados Traduzidos (Títulos e Sinopses)
             titles: {
                 PT: ptData.title,
                 EN: enData.title,
@@ -45,9 +63,27 @@ export const getMovieData = async (tmdbId) => {
                 EN: enData.overview,
                 ES: esData.overview
             },
+
+            // === NOVOS DADOS PARA EXIBIÇÃO ===
+            genres: {
+                PT: getGenresList(ptData),
+                EN: getGenresList(enData),
+                ES: getGenresList(esData)
+            },
+            // Salvamos códigos universais para o país
+            countries: {
+                PT: getCountriesList(ptData),
+                EN: getCountriesList(enData),
+                ES: getCountriesList(esData)
+            },
+
             posterUrl: `https://image.tmdb.org/t/p/w500${ptData.poster_path}`,
             backdropUrl: `https://image.tmdb.org/t/p/w1280${ptData.backdrop_path}`,
+
             releaseYear: releaseYear,
+            runtime: ptData.runtime, // Duração em minutos
+            director: director,      // Nome do Diretor
+
             tags: tags,
             externalIds: {
                 tmdb: tmdbId.toString(),
@@ -70,7 +106,7 @@ export const searchMovies = async (query) => {
 
     const response = await tmdbClient.get('/search/movie', {
         params: {
-            api_key: apiKey, // Passando a chave aqui
+            api_key: apiKey,
             query,
             language: 'pt-BR',
             page: 1
