@@ -8,6 +8,12 @@ export default function TechnicalDetails({ details, type, t, lang }) {
 
   const safeLang = (lang || "PT").split("-")[0].toUpperCase();
 
+  const albumArtistLabel =
+  safeLang === "EN" ? "Artist" : safeLang === "ES" ? "Artista" : "Artista";
+
+  const albumTracksLabel =
+  safeLang === "EN" ? "Tracks" : safeLang === "ES" ? "Pistas" : "Faixas";
+
   // Helper: pega o primeiro valor existente dentre várias chaves possíveis
   const getValue = (keys) => {
     for (const k of keys) {
@@ -118,8 +124,8 @@ export default function TechnicalDetails({ details, type, t, lang }) {
     {/* --- DETALHES PARA ÁLBUNS --- */}
     {type === "album" && (
       <>
-      {renderDetailItem("Artista", getValue(["Artista"]))}
-      {renderDetailItem("Faixas", getValue(["Faixas"]))}
+      {renderDetailItem(albumArtistLabel, getValue(["Artista"]))}
+      {renderDetailItem(albumTracksLabel, getValue(["Faixas"]))}
 
       {renderDetailItem(
         "details.genre",
