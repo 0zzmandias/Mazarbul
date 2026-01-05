@@ -219,6 +219,11 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
   ? translatedCountries.join(", ")
   : translatedCountries;
 
+  const principalCredit =
+  mediaData.director ||
+  mediaData.credits?.crew?.find((c) => c.job === "Director")?.name ||
+  null;
+
   let directorLabel = "Direção";
   if (mediaData.type === "livro") directorLabel = "Autor";
   if (mediaData.type === "jogo") directorLabel = "Desenvolvedora";
@@ -354,11 +359,24 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
     {titleText}
     </h1>
 
-    <div className="text-lg text-neutral-300 flex flex-wrap justify-center md:justify-start gap-3 items-center">
+    <div className="flex flex-col gap-1 items-center md:items-start text-neutral-300">
+    {principalCredit && (
+      <div className="text-lg">
+      {principalCredit}
+      </div>
+    )}
+
+    {headerYear && (
+      <div className="text-lg">
+      {headerYear}
+      </div>
+    )}
+
+    <div className="mt-1">
     <span className="bg-white/10 px-2 py-0.5 rounded text-sm font-medium backdrop-blur-md uppercase">
     {t(`badge.${mediaData.type}`) || mediaData.type}
     </span>
-    {headerYear && <span>{headerYear}</span>}
+    </div>
     </div>
 
     <motion.button
