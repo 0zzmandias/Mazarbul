@@ -12,105 +12,134 @@ datasource db {
 // ==========================================
 
 model User {
-  id       String  @id @default(uuid())
-  email    String  @unique
-  name     String?
-  handle   String  @unique // O @usuario (ex: @maris)
-  password String // Senha criptografada (bcrypt)
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  handle    String   @unique
+  password  String
 
-  // Perfil Público (Adicionados nesta Sprint)
-  bio       String? @db.Text
-  avatarUrl String? // URL da imagem
+  bio       String?  @db.Text
+  avatarUrl String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relacionamentos
-  reviews      Review[]
-  achievements UserAchievement[]
-
-  // Lista de Favoritos (Relação N:N com MediaReference)
-  favorites MediaReference[] @relation("UserFavorites")
+  reviews       Review[]
+  achievements  UserAchievement[]
+  favorites     MediaReference[] @relation("UserFavorites")
 }
 
 // ==========================================
 // MÍDIA (CACHE & CATALOGO)
 // ==========================================
-// Aqui guardamos apenas o que foi citado/usado por algum usuário.
-// Funciona como um Cache inteligente das APIs externas.
 
 model MediaReference {
-  // ID Interno: Será o ID da fonte principal (ex: "tmdb_550", "ol_OL123W")
-  id String @id
+  // ID canônico (QID) ou ID legado (ex: "tmdb_550", "ol_OL123W", "lastfm_xxx")
+  id          String   @id
 
-  // Tipo de Mídia: "filme", "livro", "jogo", "album"
-  type String
+  // "filme" | "livro" | "jogo" | "album"
+  type        String
 
-  // Metadados Flexíveis para Multi-idioma
-  // Ex: { "PT": "Duna", "EN": "Dune" }
-  titles Json
+  // { "PT": "...", "EN": "...", "ES": "...", "DEFAULT": "..." }
+  titles      Json
 
-  // Ex: { "PT": "Sinopse em pt...", "EN": "Synopsis..." }
-  synopses Json?
+  synopses    Json?
 
   posterUrl   String?
   backdropUrl String?
 
-  releaseYear Int? // Essencial para troféus de "Clássicos"
+  releaseYear Int?
 
-  // === NOVOS CAMPOS TÉCNICOS ===
-  runtime  Int? // Duração em minutos
-  director String? // Nome do diretor (ou desenvolvedor principal)
+  runtime     Int?
+  director    String?
 
-  // Armazena os nomes JÁ traduzidos vindos da API.
-  // Ex: { PT: ["Ação", "Terror"], EN: ["Action", "Horror"] }
-  genres Json?
+  // UI-friendly (pode ser legado enquanto migramos)
+  genres      Json?
+  countries   Json?
 
-  // Ex: { PT: ["Estados Unidos"], EN: ["United States"] }
-  countries Json?
+  details     Json?
 
-  // === NOVO CAMPO FLEXÍVEL ===
-  // Guarda dados específicos de cada mídia (Páginas, Plataformas, Tracks)
-  details Json?
-  // ===========================
-
-  // Tags normalizadas para Gamificação (ex: ["tag.scifi", "tag.horror"])
-  // O Backend converte os dados da API externa para este formato antes de salvar.
-  tags String[]
-
-  // SEGURANÇA FUTURA (Estratégia Híbrida):
-  // Guardamos IDs secundários aqui. Ex: { "isbn": "978...", "googleBooksId": "xyz" }
+  tags        String[]
   externalIds Json?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Canonicalização/performance
+  isStub         Boolean   @default(false)
+  lastFetchedAt  DateTime?
+  lastAccessedAt DateTime?
+  countrySource  String?
 
-  // Quem favoritou isso?
-  favoritedBy User[] @relation("UserFavorites")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Reviews dessa mídia
-  reviews Review[]
+  // Relacionamentos
+  favoritedBy User[]   @relation("UserFavorites")
+  reviews     Review[]
 
-  // Aliases que apontam para este MediaReference (ID canônico)
-  aliases MediaAlias[]
+  aliases     MediaAlias[]
+  mediaGenres MediaGenre[]
 
-  @@index([type]) // Para buscar rápido "todos os livros cadastrados"
+  @@index([type])
+  @@index([type, releaseYear])
+  @@index([lastAccessedAt])
 }
 
 // ==========================================
-// ALIASES DE MÍDIA (CANONICALIZAÇÃO)
+// BUSCA / ALIASES (DB-first)
 // ==========================================
-// Mapeia IDs alternativos para um único ID canônico em MediaReference.
 
 model MediaAlias {
-  aliasId     String         @id
-  canonicalId String
-  canonical   MediaReference @relation(fields: [canonicalId], references: [id], onDelete: Cascade)
+  id              String   @id
+  canonicalId     String
+  canonical       MediaReference @relation(fields: [canonicalId], references: [id], onDelete: Cascade)
+
+  type            String   // "filme" | "livro" | "jogo" | "album"
+  lang            String   // "PT" | "EN" | "ES"
+
+  title           String
+  titleRaw        String
+  titleNormalized String
+
+  source          String   // "wikidata.label" | "wikidata.alias" | etc
+  lastAccessedAt  DateTime @default(now())
+
+  createdAt       DateTime @default(now())
+
+  @@index([lastAccessedAt])
+  @@index([type, lang, titleNormalized])
+}
+
+// ==========================================
+// GÊNERO CANÔNICO (para troféus)
+// ==========================================
+
+model Genre {
+  // Sugestão: usar o QID do gênero como id (ex: "Q132311")
+  id        String   @id
+
+  // slug limpo (ex: "fantasy")
+  slug      String   @unique
+
+  // { "PT": "Fantasia", "EN": "Fantasy", "ES": "Fantasía" }
+  titles    Json
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([canonicalId])
+  mediaGenres MediaGenre[]
+}
+
+model MediaGenre {
+  mediaId   String
+  genreId   String
+
+  media     MediaReference @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  genre     Genre          @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([mediaId, genreId])
+  @@index([genreId])
+  @@index([mediaId])
 }
 
 // ==========================================
@@ -118,27 +147,21 @@ model MediaAlias {
 // ==========================================
 
 model Review {
-  id String @id @default(uuid())
+  id        String   @id @default(uuid())
 
-  rating  Float // Nota de 0 a 10 (ex: 9.5)
-  content String? @db.Text // O texto da review
-
-  // Tags específicas DA REVIEW (ex: "plot-twist", "atuacao", "ritmo-lento")
-  // Diferente das tags da Mídia (Gênero).
-  tags String[]
-
+  rating    Float
+  content   String?  @db.Text
+  tags      String[]
   containsSpoilers Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Dono da Review
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
 
-  // Mídia Avaliada
-  mediaId String
-  media   MediaReference @relation(fields: [mediaId], references: [id])
+  mediaId   String
+  media     MediaReference @relation(fields: [mediaId], references: [id])
 }
 
 // ==========================================
@@ -146,19 +169,13 @@ model Review {
 // ==========================================
 
 model UserAchievement {
-  id String @id @default(uuid())
-
-  // ID fixo do troféu definido no Front (ex: "horror-business", "the-one")
+  id            String   @id @default(uuid())
   achievementId String
+  unlockedAt    DateTime @default(now())
+  progress      Int      @default(0)
 
-  unlockedAt DateTime @default(now())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
 
-  // Para barras de progresso (ex: 5/10 livros lidos)
-  progress Int @default(0)
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  // Garante que o usuário só ganha o troféu "horror-business" uma vez
   @@unique([userId, achievementId])
 }

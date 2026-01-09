@@ -1,124 +1,43 @@
 import prisma from '../lib/prisma.js';
+
 import * as tmdb from '../utils/tmdb.adapter.js';
 import * as rawg from '../utils/rawg.adapter.js';
 import * as books from '../utils/books.adapter.js';
 import * as lastfm from '../utils/lastfm.adapter.js';
 
-const MBID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-const looksLikeMbid = (value) => MBID_REGEX.test(String(value || '').trim());
+import { searchUnifiedMedia } from '../services/mediaSearch.service.js';
+import { hydrateMediaReferenceByQid } from '../services/mediaHydration.service.js';
+import { isQid } from '../utils/wikidata.adapter.js';
 
-const hydrateMediaById = async (id) => {
-    return prisma.mediaReference.findUnique({
-        where: { id },
-        include: {
-            reviews: {
-                include: { user: true },
-                orderBy: { createdAt: 'desc' },
-                take: 5
-            },
-            _count: {
-                select: { favoritedBy: true }
-            }
-        }
-    });
-};
-
-const ensureAlias = async (tx, aliasId, canonicalId) => {
-    const a = String(aliasId || '').trim();
-    const c = String(canonicalId || '').trim();
-
-    if (!a || !c) return;
-    if (a === c) return;
-
-    await tx.mediaAlias.upsert({
-        where: { aliasId: a },
-        create: { aliasId: a, canonicalId: c },
-        update: { canonicalId: c }
-    });
-};
-
-const migrateMediaToCanonical = async (tx, oldId, canonicalId) => {
-    const oldKey = String(oldId || '').trim();
-    const canonKey = String(canonicalId || '').trim();
-
-    if (!oldKey || !canonKey) return;
-    if (oldKey === canonKey) return;
-
-    const oldMedia = await tx.mediaReference.findUnique({
-        where: { id: oldKey },
-        select: {
-            id: true,
-            favoritedBy: { select: { id: true } }
-        }
-    });
-
-    if (!oldMedia) {
-        // Mesmo se não existir MediaReference, ainda vale garantir o alias
-        await ensureAlias(tx, oldKey, canonKey);
-        await tx.mediaAlias.updateMany({
-            where: { canonicalId: oldKey },
-            data: { canonicalId: canonKey }
-        });
-        return;
-    }
-
-    // Reviews: move para o canônico
-    await tx.review.updateMany({
-        where: { mediaId: oldKey },
-        data: { mediaId: canonKey }
-    });
-
-    // Favoritos: move para o canônico
-    const favoritedUsers = Array.isArray(oldMedia.favoritedBy) ? oldMedia.favoritedBy : [];
-    for (const u of favoritedUsers) {
-        try {
-            await tx.user.update({
-                where: { id: u.id },
-                data: {
-                    favorites: {
-                        disconnect: { id: oldKey },
-                        connect: { id: canonKey }
-                    }
-                }
-            });
-        } catch (e) {
-            // Se já estiver conectado ao canônico, não bloqueia a migração
-            try {
-                await tx.user.update({
-                    where: { id: u.id },
-                    data: {
-                        favorites: {
-                            disconnect: { id: oldKey }
-                        }
-                    }
-                });
-            } catch (e2) {
-                // ignora
-            }
-        }
-    }
-
-    // Aliases que apontavam para o antigo canônico devem apontar para o novo
-    await tx.mediaAlias.updateMany({
-        where: { canonicalId: oldKey },
-        data: { canonicalId: canonKey }
-    });
-
-    // Mantém URL antiga funcionando
-    await ensureAlias(tx, oldKey, canonKey);
-
-    // Remove duplicata
-    await tx.mediaReference.delete({ where: { id: oldKey } });
+const isTruthy = (value) => {
+    const v = String(value ?? '').trim().toLowerCase();
+    return v === '1' || v === 'true' || v === 'yes' || v === 'y';
 };
 
 export const searchMedia = async (req, res) => {
-    const { q, type } = req.query;
+    const { q, type, lang, canonical, limit } = req.query;
 
     if (!q) {
         return res.status(400).json({ error: "Query 'q' é obrigatória" });
     }
 
+    const useCanonical = isTruthy(canonical) || !type || type === 'all';
+
     try {
+        if (useCanonical) {
+            const parsedLimit = Number.parseInt(String(limit ?? ''), 10);
+            const finalLimit = Number.isFinite(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 30)) : 20;
+
+            const results = await searchUnifiedMedia({
+                query: q,
+                uiLang: lang || 'PT',
+                type: type && type !== 'all' ? type : null,
+                limit: finalLimit
+            });
+
+            return res.json(results);
+        }
+
         let results = [];
 
         switch (type) {
@@ -146,99 +65,83 @@ export const searchMedia = async (req, res) => {
 };
 
 export const getMediaDetails = async (req, res) => {
-    const requestedId = String(req.params.id || '').trim();
-    if (!requestedId) {
-        return res.status(400).json({ error: 'ID de mídia inválido.' });
-    }
+    const { id } = req.params;
 
     const refreshParam = String(req.query.refresh || '').toLowerCase();
     const forceRefresh = refreshParam === '1' || refreshParam === 'true' || refreshParam === 'yes';
 
     try {
-        // 1) Resolve alias (se existir) para garantir página única no cache
-        const alias = await prisma.mediaAlias.findUnique({
-            where: { aliasId: requestedId }
-        });
+        if (isQid(id)) {
+            const cachedMedia = await prisma.mediaReference.findUnique({
+                where: { id },
+                include: {
+                    reviews: {
+                        include: { user: true },
+                        orderBy: { createdAt: 'desc' },
+                        take: 5
+                    },
+                    _count: {
+                        select: { favoritedBy: true }
+                    }
+                }
+            });
 
-        const resolvedId = alias?.canonicalId ? String(alias.canonicalId).trim() : requestedId;
+            if (cachedMedia && cachedMedia.isStub === false && !forceRefresh) {
+                await prisma.mediaReference.update({
+                    where: { id },
+                    data: { lastAccessedAt: new Date() }
+                });
 
-        // 2) Cache: se existe e não é refresh, retorna
-        const cachedMedia = await hydrateMediaById(resolvedId);
+                return res.json(cachedMedia);
+            }
 
-        // Promoção sem refresh: se for álbum e já tivermos releaseGroupMbid no cache, garantimos id canônico
-        if (cachedMedia && !forceRefresh) {
-            const isAlbum = cachedMedia.type === 'album' && String(cachedMedia.id || '').startsWith('lastfm_');
-            const rg = cachedMedia.externalIds?.releaseGroupMbid;
+            await hydrateMediaReferenceByQid(id, { forceRefresh });
 
-            if (isAlbum && looksLikeMbid(rg)) {
-                const canonicalId = `lastfm_rg_${rg}`;
-                if (canonicalId !== cachedMedia.id) {
-                    await prisma.$transaction(async (tx) => {
-                        // Cria/atualiza o canônico com o snapshot atual para manter consistente sem depender de refresh
-                        await tx.mediaReference.upsert({
-                            where: { id: canonicalId },
-                            create: {
-                                id: canonicalId,
-                                type: cachedMedia.type,
-                                titles: cachedMedia.titles,
-                                synopses: cachedMedia.synopses,
-                                posterUrl: cachedMedia.posterUrl,
-                                backdropUrl: cachedMedia.backdropUrl,
-                                releaseYear: cachedMedia.releaseYear,
-                                tags: cachedMedia.tags || [],
-                                externalIds: cachedMedia.externalIds || {},
+            const hydrated = await prisma.mediaReference.findUnique({
+                where: { id },
+                include: {
+                    reviews: {
+                        include: { user: true },
+                        orderBy: { createdAt: 'desc' },
+                        take: 5
+                    },
+                    _count: {
+                        select: { favoritedBy: true }
+                    }
+                }
+            });
 
-                                runtime: cachedMedia.runtime,
-                                director: cachedMedia.director,
-                                genres: cachedMedia.genres,
-                                countries: cachedMedia.countries,
-                                details: cachedMedia.details
-                            },
-                            update: {
-                                type: cachedMedia.type,
-                                titles: cachedMedia.titles,
-                                synopses: cachedMedia.synopses,
-                                posterUrl: cachedMedia.posterUrl,
-                                backdropUrl: cachedMedia.backdropUrl,
-                                releaseYear: cachedMedia.releaseYear,
-                                tags: cachedMedia.tags || [],
-                                externalIds: cachedMedia.externalIds || {},
+            if (!hydrated) {
+                return res.status(404).json({ error: 'Mídia não encontrada.' });
+            }
 
-                                runtime: cachedMedia.runtime,
-                                director: cachedMedia.director,
-                                genres: cachedMedia.genres,
-                                countries: cachedMedia.countries,
-                                details: cachedMedia.details
-                            }
-                        });
+            return res.json(hydrated);
+        }
 
-                        // requestedId e resolvedId devem apontar para o canônico
-                        await ensureAlias(tx, requestedId, canonicalId);
-                        if (resolvedId !== requestedId) await ensureAlias(tx, resolvedId, canonicalId);
-
-                        // migra a mídia antiga para o canônico (reviews/favoritos) e remove duplicata
-                        await migrateMediaToCanonical(tx, cachedMedia.id, canonicalId);
-                    });
-
-                    const hydrated = await hydrateMediaById(canonicalId);
-                    return res.json(hydrated || cachedMedia);
+        const cachedMedia = await prisma.mediaReference.findUnique({
+            where: { id },
+            include: {
+                reviews: {
+                    include: { user: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 5
+                },
+                _count: {
+                    select: { favoritedBy: true }
                 }
             }
+        });
 
-            // Garante que o alias de entrada exista quando o resolvedId é diferente
-            if (resolvedId !== requestedId) {
-                await prisma.mediaAlias.upsert({
-                    where: { aliasId: requestedId },
-                    create: { aliasId: requestedId, canonicalId: resolvedId },
-                    update: { canonicalId: resolvedId }
-                });
-            }
+        if (cachedMedia && !forceRefresh) {
+            await prisma.mediaReference.update({
+                where: { id },
+                data: { lastAccessedAt: new Date() }
+            });
 
             return res.json(cachedMedia);
         }
 
-        // 3) Busca externa
-        const [prefix, ...rest] = resolvedId.split('_');
+        const [prefix, ...rest] = id.split('_');
         const externalId = rest.join('_');
 
         let externalData = null;
@@ -248,7 +151,7 @@ export const getMediaDetails = async (req, res) => {
         } else if (prefix === 'rawg') {
             externalData = await rawg.getGameData(externalId);
         } else if (prefix === 'google' || prefix === 'ol') {
-            externalData = await books.getBookData(resolvedId);
+            externalData = await books.getBookData(id);
         } else if (prefix === 'lastfm') {
             externalData = await lastfm.getAlbumData(externalId);
         } else {
@@ -259,63 +162,80 @@ export const getMediaDetails = async (req, res) => {
             return res.status(404).json({ error: 'Mídia não encontrada na fonte externa.' });
         }
 
-        const canonicalId = String(externalData.id || '').trim();
-        if (!canonicalId) {
-            return res.status(500).json({ error: 'Resposta inválida da fonte externa.' });
-        }
+        const at = new Date();
 
-        // 4) Persistência + alias + merge (transação)
-        await prisma.$transaction(async (tx) => {
-            // Salva/atualiza sempre no ID canônico retornado pelo adapter
-            await tx.mediaReference.upsert({
-                where: { id: canonicalId },
-                create: {
-                    id: canonicalId,
-                    type: externalData.type,
-                    titles: externalData.titles,
-                    synopses: externalData.synopses,
-                    posterUrl: externalData.posterUrl,
-                    backdropUrl: externalData.backdropUrl,
-                    releaseYear: externalData.releaseYear,
-                    tags: externalData.tags || [],
-                    externalIds: externalData.externalIds || {},
+        await prisma.mediaReference.upsert({
+            where: { id: externalData.id },
+            create: {
+                id: externalData.id,
+                type: externalData.type,
+                titles: externalData.titles,
+                synopses: externalData.synopses,
+                posterUrl: externalData.posterUrl,
+                backdropUrl: externalData.backdropUrl,
+                releaseYear: externalData.releaseYear,
+                tags: externalData.tags || [],
+                externalIds: externalData.externalIds || {},
 
-                    runtime: externalData.runtime,
-                    director: externalData.director,
-                    genres: externalData.genres,
-                    countries: externalData.countries,
-                    details: externalData.details
-                },
-                update: {
-                    type: externalData.type,
-                    titles: externalData.titles,
-                    synopses: externalData.synopses,
-                    posterUrl: externalData.posterUrl,
-                    backdropUrl: externalData.backdropUrl,
-                    releaseYear: externalData.releaseYear,
-                    tags: externalData.tags || [],
-                    externalIds: externalData.externalIds || {},
+                runtime: externalData.runtime,
+                director: externalData.director,
+                genres: externalData.genres,
+                countries: externalData.countries,
+                details: externalData.details,
 
-                    runtime: externalData.runtime,
-                    director: externalData.director,
-                    genres: externalData.genres,
-                    countries: externalData.countries,
-                    details: externalData.details
-                }
-            });
+                isStub: false,
+                lastFetchedAt: at,
+                lastAccessedAt: at,
+                countrySource: null
+            },
+            update: {
+                type: externalData.type,
+                titles: externalData.titles,
+                synopses: externalData.synopses,
+                posterUrl: externalData.posterUrl,
+                backdropUrl: externalData.backdropUrl,
+                releaseYear: externalData.releaseYear,
+                tags: externalData.tags || [],
+                externalIds: externalData.externalIds || {},
 
-            // requestedId e resolvedId podem ser aliases do canônico
-            await ensureAlias(tx, requestedId, canonicalId);
-            if (resolvedId !== requestedId) await ensureAlias(tx, resolvedId, canonicalId);
+                runtime: externalData.runtime,
+                director: externalData.director,
+                genres: externalData.genres,
+                countries: externalData.countries,
+                details: externalData.details,
 
-            // Se já existia um MediaReference sob requestedId/resolvedId, migra e remove duplicata
-            await migrateMediaToCanonical(tx, requestedId, canonicalId);
-            if (resolvedId !== requestedId) await migrateMediaToCanonical(tx, resolvedId, canonicalId);
+                isStub: false,
+                lastFetchedAt: at,
+                lastAccessedAt: at
+            }
         });
 
-            const hydrated = await hydrateMediaById(canonicalId);
-            return res.json(hydrated);
+        const hydrated = await prisma.mediaReference.findUnique({
+            where: { id: externalData.id },
+            include: {
+                reviews: {
+                    include: { user: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 5
+                },
+                _count: {
+                    select: { favoritedBy: true }
+                }
+            }
+        });
+
+        return res.json(hydrated);
     } catch (error) {
+        const msg = String(error?.message || '');
+
+        if (msg.toLowerCase().includes('não encontrado')) {
+            return res.status(404).json({ error: msg });
+        }
+
+        if (msg.toLowerCase().includes('qid inválido') || msg.toLowerCase().includes('tipo de mídia não definido')) {
+            return res.status(400).json({ error: msg });
+        }
+
         console.error('Erro ao buscar detalhes da mídia:', error);
         return res.status(500).json({ error: 'Erro interno ao processar mídia.' });
     }
