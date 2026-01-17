@@ -1,8 +1,11 @@
 import React, { useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // IMPORTAÇÃO DO CONTEXTO
 import { AuthProvider } from "./contexts/AuthContext.jsx";
+
+// IMPORTAÇÃO DA PROTEÇÃO DE ROTA (Componente Novo)
+import ProtectedRoute from "./components/auth/ProtectedRoute/ProtectedRoute.jsx";
 
 // Importar as páginas
 import HomePage from "./pages/HomePage/HomePage.jsx";
@@ -20,7 +23,7 @@ import AchievementsPage from "./pages/AchievementsPage/AchievementsPage.jsx";
 import ListManagementPage from "./pages/ListManagementPage/ListManagementPage.jsx";
 import ClubsDiscoveryPage from "./pages/ClubsDiscoveryPage/ClubsDiscoveryPage.jsx";
 import ClubDetailsPage from "./pages/ClubDetailsPage/ClubDetailsPage.jsx";
-import ClubTopicPage from "./pages/ClubTopicPage/ClubTopicPage.jsx"; // NOVA IMPORTAÇÃO
+import ClubTopicPage from "./pages/ClubTopicPage/ClubTopicPage.jsx";
 
 // Importar os hooks
 import { useTheme } from "./hooks/useTheme";
@@ -45,64 +48,73 @@ function App() {
 
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomePage {...pageProps} />} />
-          <Route
-            path="/profile/:handle"
-            element={<ProfilePage {...pageProps} />}
-          />
-          <Route
-            path="/profile/:handle/favorites"
-            element={<FavoritesPage {...pageProps} />}
-          />
-          <Route
-            path="/profile/:handle/reviews"
-            element={<ReviewsPage {...pageProps} />}
-          />
-          <Route
-            path="/profile/:handle/achievements"
-            element={<AchievementsPage {...pageProps} />}
-          />
-          <Route path="/dashboard" element={<DashboardPage {...pageProps} />} />
-          <Route
-            path="/dashboard/lists"
-            element={<ListManagementPage {...pageProps} />}
-          />
-          <Route
-            path="/media/:mediaId"
-            element={<MediaDetailsPage {...pageProps} />}
-          />
+    <BrowserRouter>
+    <Routes>
+    {/* --- ROTAS PÚBLICAS (Acesso livre) --- */}
+    <Route path="/login" element={<LoginPage {...pageProps} />} />
+    <Route path="/register" element={<RegisterPage {...pageProps} />} />
+    <Route
+    path="/forgot-password"
+    element={<ForgotPasswordPage {...pageProps} />}
+    />
+    <Route
+    path="/reset-password"
+    element={<ResetPasswordPage {...pageProps} />}
+    />
 
-          {/* ROTAS DE CLUBES */}
-          <Route
-            path="/clubs"
-            element={<ClubsDiscoveryPage {...pageProps} />}
-          />
-          <Route
-            path="/club/:clubId"
-            element={<ClubDetailsPage {...pageProps} />}
-          />
+    {/* --- ROTAS PROTEGIDAS (Exigem Login) --- */}
+    <Route element={<ProtectedRoute />}>
+    <Route path="/" element={<HomePage {...pageProps} />} />
 
-          {/* NOVA ROTA DE TÓPICO DE CLUBE */}
-          <Route
-            path="/club/:clubId/topic/:topicId"
-            element={<ClubTopicPage {...pageProps} />}
-          />
+    <Route
+    path="/profile/:handle"
+    element={<ProfilePage {...pageProps} />}
+    />
+    <Route
+    path="/profile/:handle/favorites"
+    element={<FavoritesPage {...pageProps} />}
+    />
+    <Route
+    path="/profile/:handle/reviews"
+    element={<ReviewsPage {...pageProps} />}
+    />
+    <Route
+    path="/profile/:handle/achievements"
+    element={<AchievementsPage {...pageProps} />}
+    />
 
-          <Route path="/login" element={<LoginPage {...pageProps} />} />
-          <Route path="/register" element={<RegisterPage {...pageProps} />} />
-          <Route
-            path="/forgot-password"
-            element={<ForgotPasswordPage {...pageProps} />}
-          />
-          <Route
-            path="/reset-password"
-            element={<ResetPasswordPage {...pageProps} />}
-          />
-          <Route path="/settings" element={<SettingsPage {...pageProps} />} />
-        </Routes>
-      </BrowserRouter>
+    <Route path="/dashboard" element={<DashboardPage {...pageProps} />} />
+    <Route
+    path="/dashboard/lists"
+    element={<ListManagementPage {...pageProps} />}
+    />
+
+    <Route
+    path="/media/:mediaId"
+    element={<MediaDetailsPage {...pageProps} />}
+    />
+
+    {/* ROTAS DE CLUBES */}
+    <Route
+    path="/clubs"
+    element={<ClubsDiscoveryPage {...pageProps} />}
+    />
+    <Route
+    path="/club/:clubId"
+    element={<ClubDetailsPage {...pageProps} />}
+    />
+    <Route
+    path="/club/:clubId/topic/:topicId"
+    element={<ClubTopicPage {...pageProps} />}
+    />
+
+    <Route path="/settings" element={<SettingsPage {...pageProps} />} />
+    </Route>
+
+    {/* Fallback: Qualquer rota desconhecida redireciona para Home (que vai jogar para Login se não tiver auth) */}
+    <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+    </BrowserRouter>
     </AuthProvider>
   );
 }

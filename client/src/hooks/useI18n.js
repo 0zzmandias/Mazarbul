@@ -129,8 +129,7 @@ const I18N = {
     "achievements.locked": "Bloqueado",
     "achievement.desc.the-one":
     "Registre sua jornada literária ao longo de um ano.",
-    "achievement.desc.narya":
-    "Registre sua jornada musical ao longo de um ano.",
+    "achievement.desc.narya": "Registre sua jornada musical ao longo de um ano.",
     "achievement.desc.vilya":
     "Registre sua jornada cinematográfica ao longo de um ano.",
     "achievement.desc.nenya":
@@ -292,7 +291,7 @@ const I18N = {
     "settings.profile.avatar.remove": "Remover",
     "settings.profile.firstname": "Nome",
     "settings.profile.lastname": "Sobrenome",
-    "settings.profile.username": "Nome de usuário (@)",
+    "settings.profile.username": "Nome de usuário",
     "settings.profile.username.locked":
     "Nomes de usuário não podem ser alterados.",
     "settings.profile.bio": "Sua Bio",
@@ -328,9 +327,9 @@ const I18N = {
     "Receber emails quando alguém seguir você ou comentar em suas reviews.",
     "settings.preferences.save_button": "Salvar Preferências",
     "form.firstname": "Nome",
-    "form.lastname": "Apellido",
+    "form.lastname": "Sobrenome",
     "form.email": "Email",
-    "form.username": "Nome de usuário (@)",
+    "form.username": "Nome de usuário", // <--- CORRIGIDO
     "form.username_rules":
     "4-20 caracteres. Apenas letras, números e underscores (_).",
     "form.password": "Senha",
@@ -580,7 +579,7 @@ const I18N = {
     "list.item_singular": "item",
     "list.item_plural": "items",
 
-    // --- FILTERS & TAGS ---
+    // --- FILTROS E TAGS ---
     "filter.all": "All",
     "filter.movies": "Movies",
     "filter.books": "Books",
@@ -647,7 +646,7 @@ const I18N = {
     "settings.profile.avatar.remove": "Remove",
     "settings.profile.firstname": "First Name",
     "settings.profile.lastname": "Last Name",
-    "settings.profile.username": "Username (@)",
+    "settings.profile.username": "Username", // <--- CORRIGIDO
     "settings.profile.username.locked": "Usernames cannot be changed.",
     "settings.profile.bio": "Your Bio",
     "settings.profile.bio.placeholder": "Write a little about yourself...",
@@ -684,7 +683,7 @@ const I18N = {
     "form.firstname": "First Name",
     "form.lastname": "Last Name",
     "form.email": "Email",
-    "form.username": "Username (@)",
+    "form.username": "Username", // <--- CORRIGIDO
     "form.username_rules":
     "4-20 characters. Letters, numbers, and underscores (_) only.",
     "form.password": "Password",
@@ -747,7 +746,7 @@ const I18N = {
     // --- CLUBES ---
     "clubs.title": "Explorar Clubes",
     "clubs.subtitle":
-    "Encuentra tu tribu, participa en lecturas conjuntas y discute tus obras favoritas.",
+    "Encuentra tu tribu, participa en lecturas conjuntas e discute tus obras favoritas.",
     "club.reading_now": "Leyendo Ahora",
     "action.visit_club": "Visitar Club",
     "clubs.search_placeholder": "Buscar clubes por nombre o etiqueta...",
@@ -1006,7 +1005,7 @@ const I18N = {
     "settings.profile.avatar.remove": "Eliminar",
     "settings.profile.firstname": "Nombre",
     "settings.profile.lastname": "Apellido",
-    "settings.profile.username": "Nombre de usuario (@)",
+    "settings.profile.username": "Nombre de usuario", // <--- CORRIGIDO
     "settings.profile.username.locked":
     "Los nombres de usuario no se pueden cambiar.",
     "settings.profile.bio": "Tu Biografía",
@@ -1045,7 +1044,7 @@ const I18N = {
     "form.firstname": "Nombre",
     "form.lastname": "Apellido",
     "form.email": "Correo electrónico",
-    "form.username": "Nombre de usuario (@)",
+    "form.username": "Nombre de usuario", // <--- CORRIGIDO
     "form.username_rules":
     "4-20 caracteres. Solo letras, números y guiones bajos (_).",
     "form.password": "Contraseña",

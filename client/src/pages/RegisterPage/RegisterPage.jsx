@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, User, AtSign, AlertCircle } from "lucide-react"; // Adicionei AlertCircle
+import { Mail, Lock, User, AtSign, AlertCircle } from "lucide-react";
 import HeaderBar from "../../components/layout/HeaderBar/HeaderBar.jsx";
-import api from "../../services/api"; // Conexão com o Backend
-import { useAuth } from "../../contexts/AuthContext"; // Para auto-login
+import api from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Regex para validar o FORMATO do @username
+// A regra é: 4 a 20 caracteres, letras (a-z), números (0-9) e underline (_) apenas.
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{4,20}$/;
 
 function RegisterPage({ theme, setTheme, lang, setLang, t }) {
@@ -20,12 +21,12 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
   const [isUsernameValid, setIsUsernameValid] = useState(true);
   const [isUsernameTouched, setIsUsernameTouched] = useState(false);
 
-  // Novos estados para integração
+  // Estados de integração
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
-  const { signIn } = useAuth(); // Importamos a função de login
+  const { signIn } = useAuth();
 
   const getT = (key, fallback) => {
     if (typeof t === "function") {
@@ -50,18 +51,22 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // Limpa erros anteriores
+    setError("");
 
     // 1. Validação de formato (client-side)
     if (!USERNAME_REGEX.test(username)) {
       setIsUsernameValid(false);
       setIsUsernameTouched(true);
-      // Aqui podemos definir o erro no estado visual em vez de alert
-      setError(getT("alert.username_invalid_format", "Formato do @username inválido."));
+      setError(
+        getT(
+          "alert.username_invalid_format",
+          "Formato de usuário inválido. Use apenas letras, números e _."
+        )
+      );
       return;
     }
 
-    // 2. Validação de senha (client-side)
+    // 2. Validação de senha
     if (password !== confirmPassword) {
       setError(getT("alert.password_mismatch", "As senhas não conferem!"));
       return;
@@ -70,27 +75,26 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
     setIsSubmitting(true);
 
     try {
-      // 3. Concatena Nome e Sobrenome para o padrão do Backend
+      // 3. Concatena Nome e Sobrenome
       const fullName = `${nome.trim()} ${sobrenome.trim()}`;
 
       // 4. Chamada REAL ao Backend
-      await api.post('/auth/register', {
+      await api.post("/auth/register", {
         name: fullName,
         email: email,
         password: password,
-        handle: username
+        handle: username,
       });
 
-      // 5. Se chegou aqui, deu certo! Vamos fazer Login Automático.
+      // 5. Login Automático
       await signIn(email, password);
 
-      // 6. Redireciona para o Dashboard
+      // 6. Redireciona
       navigate("/dashboard");
-
     } catch (err) {
       console.error("Erro no cadastro:", err);
-      // Pega a mensagem de erro do backend (ex: "Email já está em uso")
-      const backendMessage = err.response?.data?.error || "Falha ao criar conta. Tente novamente.";
+      const backendMessage =
+      err.response?.data?.error || "Falha ao criar conta. Tente novamente.";
       setError(backendMessage);
       setIsSubmitting(false);
     }
@@ -116,7 +120,10 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
     {getT("register.title", "Criar sua conta")}
     </h2>
     <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-2">
-    {getT("register.subtitle", "Junte-se à comunidade Mazarbul.")}
+    {getT(
+      "register.subtitle",
+      "Junte-se à comunidade Mazarbul."
+    )}
     </p>
     </div>
 
@@ -149,6 +156,7 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 opacity-0">
     <User className="w-5 h-5" />
     </span>
+    {/* ALTERAÇÃO: Placeholder explicitamente setado para Sobrenome */}
     <input
     type="text"
     id="lastname"
@@ -182,6 +190,7 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">
     <AtSign className="w-5 h-5" />
     </span>
+    {/* ALTERAÇÃO: Placeholder modificado para "Nome de usuário" */}
     <input
     type="text"
     id="username"
@@ -189,7 +198,7 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
     onChange={handleUsernameChange}
     onBlur={() => setIsUsernameTouched(true)}
     required
-    placeholder={getT("form.username", "Nome de usuário (@)")}
+    placeholder={getT("form.username", "Nome de usuário")}
     className={`w-full pl-10 pr-4 py-2.5 rounded-lg border bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
       !isUsernameValid && isUsernameTouched
       ? "border-red-500 dark:border-red-400"
@@ -198,7 +207,7 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
     />
     </div>
 
-    {/* REGRAS DE VALIDAÇÃO (Visível) */}
+    {/* REGRAS DE VALIDAÇÃO (Atualizado para a verdade técnica) */}
     <p
     className={`text-xs px-1 ${
       !isUsernameValid && isUsernameTouched
@@ -208,7 +217,7 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
     >
     {getT(
       "form.username_rules",
-      "4-20 caracteres. Apenas letras, números e underscores (_)."
+      "4 a 20 caracteres. Apenas letras (a-z), números (0-9) e underline (_)."
     )}
     </p>
 
@@ -239,7 +248,10 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
     value={confirmPassword}
     onChange={(e) => setConfirmPassword(e.target.value)}
     required
-    placeholder={getT("form.confirm_password", "Confirmar senha")}
+    placeholder={getT(
+      "form.confirm_password",
+      "Confirmar senha"
+    )}
     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
     />
     </div>
@@ -247,29 +259,33 @@ function RegisterPage({ theme, setTheme, lang, setLang, t }) {
     <button
     type="submit"
     disabled={isSubmitting}
-    className={`w-full inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+    className={`w-full inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 ${
+      isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+    }`}
     >
-    {isSubmitting ? "Cadastrando..." : getT("register.button", "Criar conta")}
-    </button>
-    </form>
-    </div>
+    {isSubmitting
+      ? "Cadastrando..."
+      : getT("register.button", "Criar conta")}
+      </button>
+      </form>
+      </div>
 
-    <div className="border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30 px-6 py-4">
-    <p className="text-center text-sm text-neutral-600 dark:text-neutral-400">
-    {getT("register.already_have_account", "Já tem uma conta?")}{" "}
-    <Link
-    to="/login"
-    className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-500 dark:hover:text-blue-400"
-    >
-    {getT("register.login_link", "Faça login")}
-    </Link>
-    </p>
-    </div>
-    </div>
-    </div>
-    </div>
-    </main>
-    </div>
+      <div className="border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30 px-6 py-4">
+      <p className="text-center text-sm text-neutral-600 dark:text-neutral-400">
+      {getT("register.already_have_account", "Já tem uma conta?")}{" "}
+      <Link
+      to="/login"
+      className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-500 dark:hover:text-blue-400"
+      >
+      {getT("register.login_link", "Faça login")}
+      </Link>
+      </p>
+      </div>
+      </div>
+      </div>
+      </div>
+      </main>
+      </div>
   );
 }
 
