@@ -8,6 +8,9 @@ export const register = async (req, res) => {
         // Devolvemos 201 (Created) e o usuário criado
         res.status(201).json(result);
     } catch (error) {
+        // ADIÇÃO: Log para ver o erro real no terminal se falhar
+        console.error("ERRO NO REGISTRO:", error);
+
         // Se der erro (ex: email duplicado), devolvemos 400 (Bad Request)
         res.status(400).json({ error: error.message });
     }
@@ -20,6 +23,9 @@ export const login = async (req, res) => {
 
         res.json(result);
     } catch (error) {
+        // ADIÇÃO: Log para ver o erro real no terminal se falhar
+        console.error("ERRO NO LOGIN:", error);
+
         res.status(401).json({ error: error.message });
     }
 };

@@ -17,7 +17,6 @@ export function AuthProvider({ children }) {
     const storedToken = localStorage.getItem('@Mazarbul:token');
 
     if (storedUser && storedToken) {
-      // BLINDAGEM: Verifica se não salvou "undefined" como texto por engano
       if (storedUser !== "undefined" && storedUser !== "null") {
         try {
           const parsedUser = JSON.parse(storedUser);
@@ -25,12 +24,10 @@ export function AuthProvider({ children }) {
           api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
         } catch (error) {
           console.error("Storage corrompido, limpando...", error);
-          // Se o dado estiver podre, limpamos tudo para não travar o app
           localStorage.removeItem('@Mazarbul:user');
           localStorage.removeItem('@Mazarbul:token');
         }
       } else {
-        // Se for "undefined" texto, limpa também
         localStorage.removeItem('@Mazarbul:user');
         localStorage.removeItem('@Mazarbul:token');
       }
@@ -45,7 +42,6 @@ export function AuthProvider({ children }) {
 
       const { token, user } = response.data;
 
-      // Verificação extra antes de salvar
       if (user && token) {
         localStorage.setItem('@Mazarbul:token', token);
         localStorage.setItem('@Mazarbul:user', JSON.stringify(user));
@@ -73,7 +69,17 @@ export function AuthProvider({ children }) {
     window.location.href = '/login';
   };
 
-  const value = { currentUser, loading, signIn, signOut };
+  // --- NOVA FUNÇÃO: Atualiza a sessão sem deslogar ---
+  const updateUserSession = (userData) => {
+    // Mescla os dados atuais com os novos (para não perder campos que não vieram no update)
+    const updatedUser = { ...currentUser, ...userData };
+
+    setCurrentUser(updatedUser);
+    localStorage.setItem('@Mazarbul:user', JSON.stringify(updatedUser));
+  };
+
+  // Adicionei updateUserSession aqui no final
+  const value = { currentUser, loading, signIn, signOut, updateUserSession };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

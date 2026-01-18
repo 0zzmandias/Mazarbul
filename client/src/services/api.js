@@ -15,4 +15,15 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// Métodos auxiliares para Favoritos e Coleções
+export const favoriteService = {
+    toggle: (mediaId) => api.post('/favorites/toggle', { mediaId }),
+};
+
+export const collectionService = {
+    create: (data) => api.post('/collections', data),
+    addItem: (collectionId, mediaId) => api.post('/collections/add', { collectionId, mediaId }),
+    removeItem: (collectionId, mediaId) => api.post('/collections/remove', { collectionId, mediaId }),
+};
+
 export default api;

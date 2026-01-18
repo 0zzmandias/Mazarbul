@@ -18,7 +18,7 @@ model User {
   handle    String   @unique
   password  String
 
-  bio       String?  @db.Text
+  bio        String?  @db.Text
   avatarUrl String?
 
   createdAt DateTime @default(now())
@@ -27,6 +27,7 @@ model User {
   reviews       Review[]
   achievements  UserAchievement[]
   favorites     MediaReference[] @relation("UserFavorites")
+  collections   Collection[]
 }
 
 // ==========================================
@@ -50,7 +51,7 @@ model MediaReference {
 
   releaseYear Int?
 
-  runtime     Int?
+  runtime      Int?
   director    String?
 
   // UI-friendly (pode ser legado enquanto migramos)
@@ -63,8 +64,8 @@ model MediaReference {
   externalIds Json?
 
   // Canonicalização/performance
-  isStub         Boolean   @default(false)
-  lastFetchedAt  DateTime?
+  isStub          Boolean   @default(false)
+  lastFetchedAt   DateTime?
   lastAccessedAt DateTime?
   countrySource  String?
 
@@ -73,9 +74,10 @@ model MediaReference {
 
   // Relacionamentos
   favoritedBy User[]   @relation("UserFavorites")
-  reviews     Review[]
+  reviews      Review[]
+  collectionItems CollectionItem[]
 
-  aliases     MediaAlias[]
+  aliases      MediaAlias[]
   mediaGenres MediaGenre[]
 
   @@index([type])
@@ -89,20 +91,20 @@ model MediaReference {
 
 model MediaAlias {
   id              String   @id
-  canonicalId     String
-  canonical       MediaReference @relation(fields: [canonicalId], references: [id], onDelete: Cascade)
+  canonicalId      String
+  canonical        MediaReference @relation(fields: [canonicalId], references: [id], onDelete: Cascade)
 
   type            String   // "filme" | "livro" | "jogo" | "album"
   lang            String   // "PT" | "EN" | "ES"
 
-  title           String
+  title            String
   titleRaw        String
   titleNormalized String
 
   source          String   // "wikidata.label" | "wikidata.alias" | etc
   lastAccessedAt  DateTime @default(now())
 
-  createdAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
 
   @@index([lastAccessedAt])
   @@index([type, lang, titleNormalized])
@@ -132,8 +134,8 @@ model MediaGenre {
   mediaId   String
   genreId   String
 
-  media     MediaReference @relation(fields: [mediaId], references: [id], onDelete: Cascade)
-  genre     Genre          @relation(fields: [genreId], references: [id], onDelete: Cascade)
+  media      MediaReference @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  genre      Genre          @relation(fields: [genreId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -178,4 +180,38 @@ model UserAchievement {
   user          User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, achievementId])
+}
+
+// ==========================================
+// COLEÇÕES E LISTAS
+// ==========================================
+
+model Collection {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  isPublic    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items       CollectionItem[]
+
+  @@index([userId])
+}
+
+model CollectionItem {
+  id           String   @id @default(uuid())
+  collectionId String
+  mediaId      String
+  addedAt      DateTime @default(now())
+
+  collection   Collection     @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  media        MediaReference @relation(fields: [mediaId], references: [id])
+
+  @@unique([collectionId, mediaId]) // Evita duplicatas na mesma lista
+  @@index([collectionId])
 }

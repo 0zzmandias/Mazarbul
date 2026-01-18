@@ -1,223 +1,92 @@
 import React, { createContext, useContext, useState, useMemo } from "react";
-// Importamos os dados estáticos *originais*
+import api, { favoriteService, collectionService } from "../services/api";
+// Importamos apenas o que resta de estático (Mídias e Clubes)
 import {
-  staticUserDatabase,
   staticMediaDatabase,
   staticClubsDatabase,
 } from "../hooks/useUserProfileData.js";
 
-// --- Definição do Contexto ---
 const UserDatabaseContext = createContext(null);
 
-// --- O Provedor ---
 export function UserDatabaseProvider({ children }) {
-  const [db, setDb] = useState(staticUserDatabase);
+  // db agora é apenas um estado para compatibilidade,
+  // já que o hook useUserProfileData gerencia sua própria busca na API
+  const [db, setDb] = useState({});
   const mediaDatabase = staticMediaDatabase;
 
-  // Estado para os Clubes
+  // Clubes permanecem em memória até a migração para o Backend
   const [clubsDb, setClubsDb] = useState(staticClubsDatabase);
 
-  // --- Funções para Modificar a "Memória" ---
+  // --- FUNÇÕES CONECTADAS AO BACKEND (POSTGRESQL) ---
 
-  const toggleFavorite = (userId, mediaData) => {
-    if (!mediaData) return;
-
-    setDb((prevDb) => {
-      const userHandle = userId.replace("@", "");
-      const currentUser = prevDb[userHandle];
-      if (!currentUser) return prevDb;
-
-      const currentFavorites = currentUser.favorites || [];
-      const isFavorited = currentFavorites.some(
-        (fav) => fav.id === mediaData.id,
-      );
-
-      let newFavorites;
-
-      if (isFavorited) {
-        newFavorites = currentFavorites.filter(
-          (fav) => fav.id !== mediaData.id,
-        );
-      } else {
-        const newFavoriteItem = {
-          id: mediaData.id,
-          type: mediaData.type,
-          title: mediaData.title,
-          year: mediaData.details?.Ano || mediaData.year,
-          score: mediaData.communityAverage || mediaData.score,
-          tags: mediaData.details?.Gênero || mediaData.tags,
-        };
-        newFavorites = [...currentFavorites, newFavoriteItem];
-      }
-
-      return {
-        ...prevDb,
-        [userHandle]: {
-          ...currentUser,
-          favorites: newFavorites,
-        },
-      };
-    });
+  /**
+   * Alterna favorito no banco via API.
+   * Não manipula memória: o componente local (MediaDetails) cuida do toggle visual.
+   */
+  const toggleFavorite = async (mediaId) => {
+    try {
+      await favoriteService.toggle(mediaId);
+    } catch (error) {
+      console.error("[CONTEXT] Erro ao alternar favorito:", error);
+      throw error;
+    }
   };
 
-  // --- LÓGICA DE LISTAS ---
-
-  const createCollection = (userId, title, description) => {
-    const userHandle = userId.replace("@", "");
-    const newCollection = {
-      id: `col_${Date.now()}`,
-      title,
-      description,
-      items: [],
-    };
-
-    setDb((prevDb) => {
-      const currentUser = prevDb[userHandle];
-      return {
-        ...prevDb,
-        [userHandle]: {
-          ...currentUser,
-          collections: [...(currentUser.collections || []), newCollection],
-        },
-      };
-    });
-    return newCollection.id;
-  };
-
-  const updateCollectionDetails = (
-    userId,
-    collectionId,
-    newTitle,
-    newDescription,
-  ) => {
-    const userHandle = userId.replace("@", "");
-    setDb((prevDb) => {
-      const currentUser = prevDb[userHandle];
-      const newCollections = currentUser.collections.map((col) =>
-        col.id === collectionId
-          ? { ...col, title: newTitle, description: newDescription }
-          : col,
-      );
-      return {
-        ...prevDb,
-        [userHandle]: {
-          ...currentUser,
-          collections: newCollections,
-        },
-      };
-    });
-  };
-
-  const addMediaToCollection = (userId, collectionId, mediaId) => {
-    const userHandle = userId.replace("@", "");
-    const itemData = mediaDatabase[mediaId];
-    if (!itemData) return;
-
-    const newCollectionItem = {
-      id: itemData.id,
-      type: itemData.type,
-      title: itemData.title.PT || "Título Desconhecido",
-    };
-
-    setDb((prevDb) => {
-      const currentUser = prevDb[userHandle];
-      if (!currentUser) return prevDb;
-
-      const newCollections = currentUser.collections.map((col) => {
-        if (col.id === collectionId) {
-          if (col.items.some((item) => item.id === mediaId)) return col;
-          return { ...col, items: [...col.items, newCollectionItem] };
-        }
-        return col;
+  /**
+   * Cria coleção no banco via API.
+   */
+  const createCollection = async (title, description, isPublic = true) => {
+    try {
+      const response = await collectionService.create({
+        name: title,
+        description,
+        isPublic
       });
-
-      const isFavorited = currentUser.favorites.some(
-        (fav) => fav.id === mediaId,
-      );
-      let newFavorites = currentUser.favorites;
-      if (!isFavorited) {
-        const newFavoriteItem = {
-          id: itemData.id,
-          type: itemData.type,
-          title: itemData.title,
-          year: itemData.details?.Ano,
-          score: itemData.communityAverage,
-          tags: itemData.details?.Gênero,
-        };
-        newFavorites = [...currentUser.favorites, newFavoriteItem];
-      }
-
-      return {
-        ...prevDb,
-        [userHandle]: {
-          ...currentUser,
-          collections: newCollections,
-          favorites: newFavorites,
-        },
-      };
-    });
+      return response.data.id;
+    } catch (error) {
+      console.error("[CONTEXT] Erro ao criar coleção:", error);
+      throw error;
+    }
   };
 
-  const removeMediaFromCollection = (userId, collectionId, mediaId) => {
-    const userHandle = userId.replace("@", "");
-    setDb((prevDb) => {
-      const currentUser = prevDb[userHandle];
-      const newCollections = currentUser.collections.map((col) => {
-        if (col.id === collectionId) {
-          const newItems = col.items.filter((item) => item.id !== mediaId);
-          return { ...col, items: newItems };
-        }
-        return col;
-      });
-      return {
-        ...prevDb,
-        [userHandle]: {
-          ...currentUser,
-          collections: newCollections,
-        },
-      };
-    });
+  /**
+   * Adiciona mídia à coleção no banco via API.
+   */
+  const addMediaToCollection = async (collectionId, mediaId) => {
+    try {
+      await collectionService.addItem(collectionId, mediaId);
+    } catch (error) {
+      console.error("[CONTEXT] Erro ao adicionar item:", error);
+      throw error;
+    }
   };
 
-  const deleteCollection = (userId, collectionId) => {
-    const userHandle = userId.replace("@", "");
-    setDb((prevDb) => {
-      const currentUser = prevDb[userHandle];
-      const newCollections = currentUser.collections.filter(
-        (col) => col.id !== collectionId,
-      );
-      return {
-        ...prevDb,
-        [userHandle]: {
-          ...currentUser,
-          collections: newCollections,
-        },
-      };
-    });
+  /**
+   * Remove mídia da coleção no banco via API.
+   */
+  const removeMediaFromCollection = async (collectionId, mediaId) => {
+    try {
+      await collectionService.removeItem(collectionId, mediaId);
+    } catch (error) {
+      console.error("[CONTEXT] Erro ao remover item:", error);
+      throw error;
+    }
   };
 
-  // --- LÓGICA DE PERFIL (NOVO) ---
-  const updateUserProfile = (userId, updatedData) => {
-    const userHandle = userId.replace("@", "");
-
-    setDb((prevDb) => {
-      const currentUser = prevDb[userHandle];
-      if (!currentUser) return prevDb;
-
-      return {
-        ...prevDb,
-        [userHandle]: {
-          ...currentUser,
-          profile: {
-            ...currentUser.profile,
-            ...updatedData, // Mescla os novos dados (nome, bio, avatar)
-          },
-        },
-      };
-    });
+  /**
+   * Atualiza perfil no banco via API.
+   */
+  const updateUserProfile = async (updatedData) => {
+    try {
+      const response = await api.put('/users/profile', updatedData);
+      return response.data;
+    } catch (error) {
+      console.error("[CONTEXT] Erro ao atualizar perfil:", error);
+      throw error;
+    }
   };
 
-  // --- LÓGICA DE CLUBES ---
+  // --- FUNÇÕES EM MEMÓRIA (CLUBES - AINDA NÃO NO BACKEND) ---
 
   const createClub = (ownerHandle, clubData) => {
     const newClub = {
@@ -227,25 +96,15 @@ export function UserDatabaseProvider({ children }) {
       ...clubData,
       activeWorks: [],
       topics: [],
-      members: [
-        {
-          name: "Fundador",
-          handle: ownerHandle,
-          role: "owner",
-          avatar: "F",
-        },
-      ],
+      members: [{ name: "Fundador", handle: ownerHandle, role: "owner", avatar: "F" }],
     };
-
     setClubsDb((prevClubs) => [...prevClubs, newClub]);
     return newClub.id;
   };
 
   const updateClub = (clubId, updatedData) => {
     setClubsDb((prevClubs) =>
-      prevClubs.map((club) =>
-        club.id === clubId ? { ...club, ...updatedData } : club,
-      ),
+    prevClubs.map((club) => club.id === clubId ? { ...club, ...updatedData } : club)
     );
   };
 
@@ -253,9 +112,14 @@ export function UserDatabaseProvider({ children }) {
     setClubsDb((prevClubs) => prevClubs.filter((c) => c.id !== clubId));
   };
 
+  // Lógica de "Update/Delete" de Coleção movida para o limbo (aguardando rotas de PATCH/DELETE no backend)
+  const updateCollectionDetails = () => console.warn("Rota de edição de coleção não implementada no Backend.");
+  const deleteCollection = () => console.warn("Rota de exclusão de coleção não implementada no Backend.");
+
   const value = useMemo(
     () => ({
       db,
+      setDb,
       mediaDatabase,
       clubsDb,
       toggleFavorite,
@@ -267,14 +131,14 @@ export function UserDatabaseProvider({ children }) {
       createClub,
       updateClub,
       deleteClub,
-      updateUserProfile, // Exportando a nova função
+      updateUserProfile,
     }),
-    [db, clubsDb],
+    [db, clubsDb]
   );
 
   return (
     <UserDatabaseContext.Provider value={value}>
-      {children}
+    {children}
     </UserDatabaseContext.Provider>
   );
 }
@@ -282,9 +146,7 @@ export function UserDatabaseProvider({ children }) {
 export function useUserDatabase() {
   const context = useContext(UserDatabaseContext);
   if (!context) {
-    throw new Error(
-      "useUserDatabase deve ser usado dentro de um UserDatabaseProvider",
-    );
+    throw new Error("useUserDatabase deve ser usado dentro de um UserDatabaseProvider");
   }
   return context;
 }

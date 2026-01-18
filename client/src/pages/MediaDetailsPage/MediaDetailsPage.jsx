@@ -11,6 +11,7 @@ import CommunityReviewsFeed from "../../components/media/CommunityReviewsFeed/Co
 
 import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
+import { useUserDatabase } from "../../contexts/UserDatabaseContext.jsx";
 
 import { translateGenre, getBookGenresTop3 } from "../../constants/genres";
 
@@ -22,6 +23,7 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
   const [error, setError] = useState(null);
 
   const { currentUser } = useAuth();
+  const { toggleFavorite } = useUserDatabase();
   const [isFavorited, setIsFavorited] = useState(false);
 
   useEffect(() => {
@@ -32,6 +34,12 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
         setError(null);
         const response = await api.get(`/media/${mediaId}`);
         setMediaData(response.data);
+
+        // Verifica se esta mídia já está nos favoritos do usuário logado
+        if (currentUser?.favorites) {
+          const favorited = currentUser.favorites.some(fav => fav.id === mediaId);
+          setIsFavorited(favorited);
+        }
       } catch (err) {
         console.error("Erro ao carregar mídia:", err);
         setError("Não foi possível carregar os detalhes desta mídia.");
@@ -40,10 +48,17 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
       }
     }
     fetchMedia();
-  }, [mediaId]);
+  }, [mediaId, currentUser]);
 
-  const handleFavoriteClick = () => {
-    setIsFavorited(!isFavorited);
+  const handleFavoriteClick = async () => {
+    const previousState = isFavorited;
+    setIsFavorited(!previousState);
+    try {
+      await toggleFavorite(mediaId, mediaData);
+    } catch (err) {
+      setIsFavorited(previousState);
+      alert("Erro ao salvar favorito.");
+    }
   };
 
   if (loading) {
@@ -325,6 +340,11 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
     };
   }
 
+  // Busca review existente do usuário logado nesta mídia
+  const userReview = (mediaData.communityReviews || mediaData.reviews || []).find(
+    (r) => r.userId === currentUser?.id
+  );
+
   return (
     <div className={cx(theme === "dark" ? "dark" : "", "font-sans")}>
     <div className="min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
@@ -460,7 +480,12 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
     </div>
 
     <div className="lg:col-span-5">
-    <UserReviewEditor communityAverage={mediaData.voteAverage || mediaData.score || 0} t={t} />
+    <UserReviewEditor
+    mediaId={mediaId}
+    initialReview={userReview}
+    communityAverage={mediaData.voteAverage || mediaData.score || 0}
+    t={t}
+    />
     </div>
     </section>
 

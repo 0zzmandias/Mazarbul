@@ -194,15 +194,7 @@ function HeaderBar({ theme, setTheme, lang, setLang, t }) {
       to="/dashboard"
       className="h-9 w-9 inline-flex items-center justify-center rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 overflow-hidden border border-transparent hover:border-neutral-200 dark:hover:border-neutral-700 transition-all"
       >
-      {currentUser?.avatarUrl ? (
-        <img
-        src={currentUser.avatarUrl}
-        alt=""
-        className="w-full h-full object-cover"
-        />
-      ) : (
-        <User className="w-5 h-5" />
-      )}
+      <User className="w-5 h-5" />
       </Link>
       </div>
       </div>

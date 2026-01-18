@@ -31,17 +31,33 @@ export default function ActivityCalendar({ reviews, t }) {
     const currentMonth = currentDate.getMonth();
 
     reviews.forEach((review) => {
+      // PROTEÇÃO: O Prisma retorna o tipo dentro do objeto media.
+      const type = review.type || review.media?.type;
+
       // 3. A lógica agora verifica o filtro antes de adicionar o dia
-      if (filter !== "todos" && review.type !== filter) {
+      if (filter !== "todos" && type !== filter) {
         return; // Pula esta review se não corresponder ao filtro
       }
 
-      const parts = review.date.split(" ");
-      if (parts.length < 3) return;
+      // PROTEÇÃO: Lógica de parsing robusta para aguentar Mocks e Banco Real
+      let day, month, year;
 
-      const day = parseInt(parts[0], 10);
-      const month = MONTH_MAP[parts[1]];
-      const year = parseInt(parts[2], 10);
+      if (review.date && review.date.includes("T")) {
+        // Formato ISO (Banco): "2026-01-18T..."
+        const d = new Date(review.date);
+        day = d.getDate();
+        month = d.getMonth();
+        year = d.getFullYear();
+      } else if (review.date) {
+        // Formato Mock: "18 Jan 2025"
+        const parts = review.date.split(" ");
+        if (parts.length < 3) return;
+        day = parseInt(parts[0], 10);
+        month = MONTH_MAP[parts[1]];
+        year = parseInt(parts[2], 10);
+      } else {
+        return;
+      }
 
       if (year === currentYear && month === currentMonth) {
         activity.add(day);
@@ -89,77 +105,77 @@ export default function ActivityCalendar({ reviews, t }) {
     });
     // Garante que o "de" seja minúsculo e a primeira letra do mês seja maiúscula
     return formatted
-      .replace(" de ", " de ")
-      .replace(/^[a-z]/, (char) => char.toUpperCase());
+    .replace(" de ", " de ")
+    .replace(/^[a-z]/, (char) => char.toUpperCase());
   };
 
   return (
     <div className="p-4 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 min-h-[320px]">
-      <div className="flex items-center justify-between">
-        {/* CORREÇÃO: Removido 'capitalize' e usada a nova função de formatação */}
-        <h3 className="font-semibold text-neutral-800 dark:text-neutral-100">
-          {formatMonthTitle(currentDate)}
-        </h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrevMonth}
-            className="p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
+    <div className="flex items-center justify-between">
+    {/* CORREÇÃO: Removido 'capitalize' e usada a nova função de formatação */}
+    <h3 className="font-semibold text-neutral-800 dark:text-neutral-100">
+    {formatMonthTitle(currentDate)}
+    </h3>
+    <div className="flex items-center gap-2">
+    <button
+    onClick={handlePrevMonth}
+    className="p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
+    >
+    <ChevronLeft className="w-5 h-5" />
+    </button>
+    <button
+    onClick={handleNextMonth}
+    className="p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
+    >
+    <ChevronRight className="w-5 h-5" />
+    </button>
+    </div>
+    </div>
+
+    {/* 2. Botões de filtro adicionados */}
+    <div className="flex items-center gap-2 text-xs flex-wrap my-4">
+    {filterChips.map((f) => (
+      <button
+      key={f.k}
+      onClick={() => setFilter(f.k)}
+      className={cx(
+        "px-3 py-1.5 rounded-full border",
+        filter === f.k
+        ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white"
+        : "border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800/60",
+      )}
+      >
+      {f.label}
+      </button>
+    ))}
+    </div>
+
+    <div className="grid grid-cols-7 gap-y-2 text-center text-xs text-neutral-500">
+    {WEEKDAYS.map((day) => (
+      <div key={day}>{day}</div>
+    ))}
+    </div>
+
+    <div className="mt-2 grid grid-cols-7 gap-y-2 text-center text-sm">
+    {calendarDays.map((day, index) => {
+      const hasActivity = day && activeDays.has(day);
+      return (
+        <div key={index} className="flex justify-center items-center h-8">
+        {day && (
+          <span
+          className={cx(
+            "flex items-center justify-center w-8 h-8 rounded-full",
+            hasActivity &&
+            "bg-emerald-200/50 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 font-semibold",
+          )}
           >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={handleNextMonth}
-            className="p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+          {day}
+          </span>
+        )}
         </div>
-      </div>
-
-      {/* 2. Botões de filtro adicionados */}
-      <div className="flex items-center gap-2 text-xs flex-wrap my-4">
-        {filterChips.map((f) => (
-          <button
-            key={f.k}
-            onClick={() => setFilter(f.k)}
-            className={cx(
-              "px-3 py-1.5 rounded-full border",
-              filter === f.k
-                ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white"
-                : "border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800/60",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-y-2 text-center text-xs text-neutral-500">
-        {WEEKDAYS.map((day) => (
-          <div key={day}>{day}</div>
-        ))}
-      </div>
-
-      <div className="mt-2 grid grid-cols-7 gap-y-2 text-center text-sm">
-        {calendarDays.map((day, index) => {
-          const hasActivity = day && activeDays.has(day);
-          return (
-            <div key={index} className="flex justify-center items-center h-8">
-              {day && (
-                <span
-                  className={cx(
-                    "flex items-center justify-center w-8 h-8 rounded-full",
-                    hasActivity &&
-                      "bg-emerald-200/50 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 font-semibold",
-                  )}
-                >
-                  {day}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      );
+    })}
+    </div>
     </div>
   );
 }
