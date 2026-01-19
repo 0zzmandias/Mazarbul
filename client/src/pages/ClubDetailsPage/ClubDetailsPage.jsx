@@ -28,6 +28,7 @@ import HeaderBar from "../../components/layout/HeaderBar/HeaderBar.jsx";
 import ManageClubModal from "../../components/club/ManageClubModal/ManageClubModal.jsx";
 import CreateTopicModal from "../../components/club/CreateTopicModal/CreateTopicModal.jsx";
 import clubService from "../../services/club.service.js";
+import topicService from "../../services/topic.service.js"; // <--- IMPORT NOVO
 
 const TypeIcon = {
   livro: BookOpen,
@@ -129,11 +130,12 @@ const ClubWorkCard = ({ work, variant = "active", t }) => {
   );
 };
 
-// Componente Auxiliar: Linha de Tópico
-const DiscussionRow = ({ topic, isExtra, t, clubId }) => (
+// Componente Auxiliar: Linha de Tópico (ATUALIZADO COM BOTÕES DE MODERAÇÃO)
+const DiscussionRow = ({ topic, isExtra, t, clubId, canManage, onPin, onLock }) => (
+  <div className="relative group border-b border-neutral-100 dark:border-neutral-800 last:border-0 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
   <Link
   to={topic.id ? `/club/${clubId}/topic/${topic.id}` : "#"}
-  className="flex items-start gap-4 p-4 border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors cursor-pointer group last:border-0"
+  className="flex items-start gap-4 p-4 cursor-pointer"
   >
   <div className="pt-1">
   {topic.isPinned ? (
@@ -148,7 +150,7 @@ const DiscussionRow = ({ topic, isExtra, t, clubId }) => (
   )}
   </div>
   <div className="flex-1 min-w-0">
-  <h4 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-1">
+  <h4 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-1 pr-16">
   {topic.title}
   </h4>
   <div className="flex items-center gap-2 text-xs text-neutral-500">
@@ -167,10 +169,37 @@ const DiscussionRow = ({ topic, isExtra, t, clubId }) => (
     </span>
     </div>
     </div>
-    <div className="text-xs text-neutral-400 whitespace-nowrap">
+    <div className="text-xs text-neutral-400 whitespace-nowrap hidden sm:block">
     {topic.createdAt ? new Date(topic.createdAt).toLocaleDateString() : ""}
     </div>
     </Link>
+
+    {/* Botões de Moderação (Flutuantes no Hover) */}
+    {canManage && (
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-neutral-900 shadow-sm p-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
+      <button
+      onClick={(e) => { e.stopPropagation(); onPin(topic); }}
+      className={cx(
+        "p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors",
+        topic.isPinned ? "text-indigo-500" : "text-neutral-400"
+      )}
+      title={topic.isPinned ? "Desafixar" : "Fixar"}
+      >
+      <Pin size={14} className={topic.isPinned ? "fill-current" : ""} />
+      </button>
+      <button
+      onClick={(e) => { e.stopPropagation(); onLock(topic); }}
+      className={cx(
+        "p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors",
+        topic.isLocked ? "text-red-500" : "text-neutral-400"
+      )}
+      title={topic.isLocked ? "Destrancar" : "Trancar"}
+      >
+      <Lock size={14} />
+      </button>
+      </div>
+    )}
+    </div>
 );
 
 // Componente Auxiliar: Card de Membro
@@ -302,6 +331,28 @@ export default function ClubDetailsPage({ theme, setTheme, lang, setLang, t }) {
       alert("Funcionalidade de exclusão será implementada na próxima sprint.");
     }
   };
+
+  // --- FUNÇÕES DE MODERAÇÃO (NOVAS) ---
+  const handleTogglePin = async (topic) => {
+    if (!canManage) return;
+    try {
+      await topicService.togglePin(topic.id);
+      fetchClubDetails(); // Recarrega para mostrar a mudança
+    } catch (error) {
+      alert("Erro ao fixar/desfixar tópico.");
+    }
+  };
+
+  const handleToggleLock = async (topic) => {
+    if (!canManage) return;
+    try {
+      await topicService.toggleLock(topic.id);
+      fetchClubDetails();
+    } catch (error) {
+      alert("Erro ao trancar/destrancar tópico.");
+    }
+  };
+  // ------------------------------------
 
   if (isLoading) {
     return (
@@ -546,6 +597,9 @@ export default function ClubDetailsPage({ theme, setTheme, lang, setLang, t }) {
           topic={topic}
           t={t}
           clubId={club.id}
+          canManage={canManage} // <--- Passando permissão
+          onPin={handleTogglePin} // <--- Passando função
+          onLock={handleToggleLock} // <--- Passando função
           />
         ))
       ) : (

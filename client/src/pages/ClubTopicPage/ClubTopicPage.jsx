@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronLeft, MessageSquare, Send, Loader2 } from "lucide-react";
+import { ChevronLeft, MessageSquare, Send, Loader2, Lock } from "lucide-react"; // Adicionei Lock
 import { cx } from "../../utils/formatters";
 import HeaderBar from "../../components/layout/HeaderBar/HeaderBar.jsx";
-import topicService from "../../services/topic.service.js"; // <--- NOVO IMPORT
-import { useAuth } from "../../contexts/AuthContext.jsx"; // <--- NOVO IMPORT
+import topicService from "../../services/topic.service.js";
+import { useAuth } from "../../contexts/AuthContext.jsx";
 
 export default function ClubTopicPage({ theme, setTheme, lang, setLang, t }) {
   const { clubId, topicId } = useParams();
@@ -46,13 +46,13 @@ export default function ClubTopicPage({ theme, setTheme, lang, setLang, t }) {
     setIsSending(true);
     try {
       const newReply = await topicService.replyToTopic(topicId, replyText);
-      // Adiciona a resposta na lista localmente para feedback instantâneo (ou recarrega tudo)
-      // Como o backend retorna a reply com o author incluído, podemos adicionar direto:
+      // Adiciona a resposta na lista localmente para feedback instantâneo
       setReplies((prev) => [...prev, newReply]);
       setReplyText("");
     } catch (error) {
       console.error("Erro ao responder:", error);
-      alert("Não foi possível enviar a resposta. Verifique se você é membro do clube.");
+      // CORREÇÃO: Mostra a mensagem exata do backend (ex: "Tópico trancado" ou "Não é membro")
+      alert("Não foi possível enviar a resposta: " + (error.response?.data?.error || "Erro desconhecido."));
     } finally {
       setIsSending(false);
     }
@@ -80,6 +80,9 @@ export default function ClubTopicPage({ theme, setTheme, lang, setLang, t }) {
     );
   }
 
+  // Verificação de Bloqueio
+  const isLocked = topic.isLocked;
+
   return (
     <div className={cx(theme === "dark" ? "dark" : "", "font-sans")}>
     <div className="min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100 transition-colors duration-300">
@@ -102,8 +105,10 @@ export default function ClubTopicPage({ theme, setTheme, lang, setLang, t }) {
 
     {/* POST PRINCIPAL */}
     <article className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 mb-8 shadow-sm">
-    <h1 className="text-2xl md:text-3xl font-bold mb-4 text-neutral-900 dark:text-neutral-100">
+    <h1 className="text-2xl md:text-3xl font-bold mb-4 text-neutral-900 dark:text-neutral-100 flex items-center gap-3">
     {topic.title}
+    {/* Ícone de Cadeado no Título se trancado */}
+    {isLocked && <Lock size={24} className="text-neutral-400" title="Tópico Trancado" />}
     </h1>
 
     <div className="flex items-center gap-3 mb-6 pb-6 border-b border-neutral-100 dark:border-neutral-800">
@@ -116,7 +121,7 @@ export default function ClubTopicPage({ theme, setTheme, lang, setLang, t }) {
     </div>
     <div>
     <Link
-    to={`/profile/${topic.author?.handle?.replace("@","")}`}
+    to={`/profile/${topic.author?.handle?.replace("@", "")}`}
     className="font-semibold text-sm hover:underline"
     >
     {topic.author?.name || "Usuário"} <span className="text-neutral-500 font-normal">@{topic.author?.handle}</span>
@@ -186,17 +191,34 @@ export default function ClubTopicPage({ theme, setTheme, lang, setLang, t }) {
     <textarea
     value={replyText}
     onChange={(e) => setReplyText(e.target.value)}
-    placeholder={currentUser ? t("topic.reply_placeholder") : "Faça login para responder..."}
-    disabled={!currentUser || isSending}
-    className="w-full p-3 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:border-indigo-500 outline-none resize-none text-sm min-h-[80px] disabled:opacity-50"
+    // Placeholder condicional
+    placeholder={
+      isLocked
+      ? "Este tópico está trancado e não aceita novas respostas."
+      : (!currentUser ? "Faça login para responder..." : t("topic.reply_placeholder"))
+    }
+    // Desabilitado se não logado, enviando ou trancado
+    disabled={!currentUser || isSending || isLocked}
+    className={cx(
+      "w-full p-3 rounded-xl border outline-none resize-none text-sm min-h-[80px] transition-colors",
+      isLocked
+      ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border-neutral-200 dark:border-neutral-700 cursor-not-allowed"
+      : "bg-neutral-50 dark:bg-neutral-950 border-neutral-200 dark:border-neutral-800 focus:border-indigo-500"
+    )}
     />
     <div className="flex justify-end mt-3">
     <button
-    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+    className={cx(
+      "px-4 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-colors",
+      isLocked
+      ? "bg-neutral-300 dark:bg-neutral-800 text-neutral-500 cursor-not-allowed" // Estilo botão trancado
+      : "bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed" // Estilo normal
+    )}
     onClick={handleReply}
-    disabled={!replyText.trim() || !currentUser || isSending}
+    disabled={!replyText.trim() || !currentUser || isSending || isLocked}
+    title={isLocked ? "Tópico Trancado" : ""}
     >
-    {isSending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+    {isSending ? <Loader2 className="animate-spin" size={16} /> : (isLocked ? <Lock size={16}/> : <Send size={16} />)}
     {t("topic.reply_button")}
     </button>
     </div>

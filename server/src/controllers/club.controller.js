@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 // Criar Clube
 export const createClub = async (req, res) => {
     try {
-        // Agora recebemos 'slug' (o handle) do frontend
         const { name, description, coverUrl, isPublic, slug } = req.body;
         const userId = req.userId || req.user?.id;
 
@@ -13,17 +12,15 @@ export const createClub = async (req, res) => {
             return res.status(401).json({ error: "Usuário não autenticado." });
         }
 
-        // Se não vier slug, geramos um provisório baseado no nome para não quebrar
-        // Ex: "Clube do Livro" -> "clube-do-livro"
         const finalSlug = slug || name.toLowerCase().replace(/\s+/g, '-');
 
         const newClub = await prisma.club.create({
             data: {
                 name,
-                slug: finalSlug, // <--- Salvando o handle no banco
+                slug: finalSlug,
                 description,
                 coverUrl,
-                isPublic: isPublic !== undefined ? isPublic : true,
+                isPublic: true, // Força sempre público se não vier nada, mas removemos a lógica de esconder
                 members: {
                     create: {
                         userId: userId,
@@ -36,21 +33,57 @@ export const createClub = async (req, res) => {
         res.status(201).json(newClub);
     } catch (error) {
         console.error("Erro ao criar clube:", error);
-
-        // Tratamento para handle duplicado (Erro P2002 do Prisma)
         if (error.code === 'P2002') {
             return res.status(400).json({ error: "Este identificador (handle) já está em uso. Tente outro." });
         }
-
         res.status(500).json({ error: "Não foi possível criar o clube." });
     }
 };
 
-// Listar Clubes
+// Atualizar Clube
+export const updateClub = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, description, coverUrl } = req.body;
+        const userId = req.userId || req.user?.id;
+
+        if (!userId) return res.status(401).json({ error: "Login necessário." });
+
+        const membership = await prisma.clubMember.findUnique({
+            where: {
+                clubId_userId: {
+                    clubId: id,
+                    userId: userId
+                }
+            }
+        });
+
+        if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
+            return res.status(403).json({ error: "Sem permissão para editar este clube." });
+        }
+
+        const updatedClub = await prisma.club.update({
+            where: { id },
+            data: {
+                name,
+                description,
+                coverUrl
+            }
+        });
+
+        res.json(updatedClub);
+    } catch (error) {
+        console.error("Erro ao atualizar clube:", error);
+        res.status(500).json({ error: "Erro ao salvar alterações do clube." });
+    }
+};
+
+// Listar Clubes (SEM FILTROS DE PRIVACIDADE)
 export const listClubs = async (req, res) => {
     try {
         const clubs = await prisma.club.findMany({
-            where: { isPublic: true },
+            // REMOVIDO: where: { isPublic: true }
+            // Agora lista todos os clubes existentes
             include: {
                 _count: { select: { members: true } }
             },
@@ -70,29 +103,30 @@ export const getClubDetails = async (req, res) => {
         const { id } = req.params;
         const userId = req.userId || req.user?.id;
 
-        // 1. Busca os dados do clube e a lista pública de membros
         const club = await prisma.club.findUnique({
             where: { id },
             include: {
                 _count: {
                     select: { members: true, topics: true }
                 },
-                // Traz os membros com os dados do usuário (nome, avatar) para o card aparecer corretamente
                 members: {
-                    take: 50, // Limita a 50 membros iniciais para não pesar
-                    orderBy: { joinedAt: 'asc' }, // Membros mais antigos primeiro (Fundador no topo)
-        include: {
-            user: {
-                select: { id: true, name: true, handle: true, avatarUrl: true }
-            }
-        }
+                    take: 50,
+                    orderBy: { joinedAt: 'asc' },
+                    include: {
+                        user: {
+                            select: { id: true, name: true, handle: true, avatarUrl: true }
+                        }
+                    }
                 },
                 works: {
                     where: { status: "active" },
                     include: { media: true }
                 },
                 topics: {
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: [
+                        { isPinned: 'desc' },
+                        { createdAt: 'desc' }
+                    ],
                     take: 20,
                     include: {
                         author: {
@@ -110,7 +144,6 @@ export const getClubDetails = async (req, res) => {
             return res.status(404).json({ error: "Clube não encontrado." });
         }
 
-        // 2. Verifica SEPARADAMENTE qual o papel do usuário atual neste clube
         let currentUserRole = null;
         if (userId) {
             const membership = await prisma.clubMember.findUnique({
@@ -128,7 +161,7 @@ export const getClubDetails = async (req, res) => {
 
         res.json({
             ...club,
-            currentUserRole, // OWNER, ADMIN, MEMBER ou null
+            currentUserRole,
             isMember: !!currentUserRole
         });
 

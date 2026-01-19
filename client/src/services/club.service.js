@@ -1,32 +1,37 @@
 import api from "./api";
 
 const clubService = {
-    // Listar todos os clubes públicos
+    // Criar novo clube
+    createClub: async (clubData) => {
+        const response = await api.post("/clubs", clubData);
+        return response.data;
+    },
+
+    // Listar todos os clubes (CORRIGIDO O NOME PARA getAllClubs)
     getAllClubs: async () => {
         const response = await api.get("/clubs");
         return response.data;
     },
 
-    // Obter detalhes de um clube específico
+    // Obter detalhes de um clube
     getClubDetails: async (id) => {
         const response = await api.get(`/clubs/${id}`);
         return response.data;
     },
 
-    // Criar um novo clube
-    createClub: async (clubData) => {
-        // clubData deve ser { name, description, isPublic, coverUrl }
-        const response = await api.post("/clubs", clubData);
+    // Atualizar clube
+    updateClub: async (id, clubData) => {
+        const response = await api.put(`/clubs/${id}`, clubData);
         return response.data;
     },
 
-    // Entrar em um clube
+    // Entrar no clube
     joinClub: async (id) => {
         const response = await api.post(`/clubs/${id}/join`);
         return response.data;
     },
 
-    // Sair de um clube
+    // Sair do clube
     leaveClub: async (id) => {
         const response = await api.post(`/clubs/${id}/leave`);
         return response.data;

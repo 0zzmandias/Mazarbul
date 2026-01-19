@@ -8,23 +8,15 @@ export const createTopic = async (req, res) => {
         const { title, content, clubId } = req.body;
         const userId = req.userId || req.user?.id;
 
-        console.log("--- TENTATIVA DE CRIAR TÓPICO ---");
-        console.log("User ID:", userId);
-        console.log("Club ID recebido:", clubId);
-        console.log("Dados:", { title, content });
-
         if (!userId) {
-            console.log("ERRO: Usuário não autenticado no controller.");
             return res.status(401).json({ error: "Login necessário." });
         }
 
         if (!clubId) {
-            console.log("ERRO: clubId não foi fornecido.");
             return res.status(400).json({ error: "ID do clube é obrigatório." });
         }
 
-        // Verifica se o usuário é membro do clube antes de postar
-        console.log("Verificando membresia...");
+        // Verifica se o usuário é membro do clube
         const membership = await prisma.clubMember.findUnique({
             where: {
                 clubId_userId: {
@@ -35,11 +27,9 @@ export const createTopic = async (req, res) => {
         });
 
         if (!membership) {
-            console.log("ERRO: Usuário não é membro deste clube.");
             return res.status(403).json({ error: "Você precisa ser membro do clube para criar tópicos." });
         }
 
-        console.log("Membresia confirmada. Criando tópico...");
         const topic = await prisma.topic.create({
             data: {
                 title,
@@ -51,16 +41,15 @@ export const createTopic = async (req, res) => {
             }
         });
 
-        console.log("Tópico criado com sucesso! ID:", topic.id);
         res.status(201).json(topic);
 
     } catch (error) {
-        console.error("ERRO FATAL ao criar tópico:", error);
+        console.error("Erro ao criar tópico:", error);
         res.status(500).json({ error: "Erro interno ao criar tópico." });
     }
 };
 
-// Listar tópicos
+// Listar tópicos (Geralmente chamado via ClubDetails, mas mantemos aqui para uso direto se precisar)
 export const listTopics = async (req, res) => {
     try {
         const { clubId } = req.query;
@@ -92,7 +81,7 @@ export const listTopics = async (req, res) => {
     }
 };
 
-// Ler detalhes
+// Ler detalhes do tópico
 export const getTopicDetails = async (req, res) => {
     try {
         const { id } = req.params;
@@ -104,7 +93,7 @@ export const getTopicDetails = async (req, res) => {
                     select: { id: true, name: true, handle: true, avatarUrl: true }
                 },
                 club: {
-                    select: { id: true, name: true }
+                    select: { id: true, name: true, slug: true } // Incluindo slug para navegação
                 },
                 replies: {
                     orderBy: { createdAt: 'asc' },
@@ -128,10 +117,10 @@ export const getTopicDetails = async (req, res) => {
     }
 };
 
-// Responder
+// Responder ao tópico
 export const replyToTopic = async (req, res) => {
     try {
-        const { id } = req.params;
+        const { id } = req.params; // topicId
         const { content } = req.body;
         const userId = req.userId || req.user?.id;
 
@@ -141,9 +130,10 @@ export const replyToTopic = async (req, res) => {
         if (!topic) return res.status(404).json({ error: "Tópico não encontrado." });
 
         if (topic.isLocked) {
-            return res.status(403).json({ error: "Este tópico está trancado." });
+            return res.status(403).json({ error: "Este tópico está trancado e não aceita novas respostas." });
         }
 
+        // Verifica membresia
         const membership = await prisma.clubMember.findUnique({
             where: {
                 clubId_userId: {
@@ -173,5 +163,75 @@ export const replyToTopic = async (req, res) => {
     } catch (error) {
         console.error("Erro ao responder:", error);
         res.status(500).json({ error: "Erro ao enviar resposta." });
+    }
+};
+
+// Alternar Fixado (Pin/Unpin) - NOVO
+export const togglePinTopic = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId || req.user?.id;
+
+        // Busca o tópico e o clube para verificar permissão
+        const topic = await prisma.topic.findUnique({ where: { id } });
+        if (!topic) return res.status(404).json({ error: "Tópico não encontrado." });
+
+        // Verifica se é ADMIN ou OWNER
+        const membership = await prisma.clubMember.findUnique({
+            where: {
+                clubId_userId: {
+                    clubId: topic.clubId,
+                    userId: userId
+                }
+            }
+        });
+
+        if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
+            return res.status(403).json({ error: "Sem permissão para fixar tópicos." });
+        }
+
+        const updatedTopic = await prisma.topic.update({
+            where: { id },
+            data: { isPinned: !topic.isPinned }
+        });
+
+        res.json(updatedTopic);
+    } catch (error) {
+        console.error("Erro ao fixar tópico:", error);
+        res.status(500).json({ error: "Erro ao alterar status de fixação." });
+    }
+};
+
+// Alternar Trancado (Lock/Unlock) - NOVO
+export const toggleLockTopic = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId || req.user?.id;
+
+        const topic = await prisma.topic.findUnique({ where: { id } });
+        if (!topic) return res.status(404).json({ error: "Tópico não encontrado." });
+
+        const membership = await prisma.clubMember.findUnique({
+            where: {
+                clubId_userId: {
+                    clubId: topic.clubId,
+                    userId: userId
+                }
+            }
+        });
+
+        if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
+            return res.status(403).json({ error: "Sem permissão para trancar tópicos." });
+        }
+
+        const updatedTopic = await prisma.topic.update({
+            where: { id },
+            data: { isLocked: !topic.isLocked }
+        });
+
+        res.json(updatedTopic);
+    } catch (error) {
+        console.error("Erro ao trancar tópico:", error);
+        res.status(500).json({ error: "Erro ao alterar status de trancamento." });
     }
 };

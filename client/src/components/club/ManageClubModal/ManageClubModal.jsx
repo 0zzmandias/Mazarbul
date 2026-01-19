@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Image as ImageIcon, Loader2 } from "lucide-react";
-import clubService from "../../../services/club.service.js"; // Import real para uso futuro
+import clubService from "../../../services/club.service.js";
 
 export default function ManageClubModal({ isOpen, onClose, clubData, t }) {
   // Estados do Formulário
@@ -80,19 +80,16 @@ export default function ManageClubModal({ isOpen, onClose, clubData, t }) {
         // Nota: O handle (slug) geralmente não é editável após a criação para não quebrar links
       };
 
-      console.log("Dados para envio (Simulação):", updatedData);
+      // CHAMADA REAL À API
+      await clubService.updateClub(clubData.id, updatedData);
 
-      // TODO: Aqui virá a chamada real: await clubService.updateClub(clubData.id, updatedData);
-
-      // Simulação de delay de rede
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      alert("As alterações foram salvas localmente (Simulação). A integração com o update no banco virá na Sprint C1.");
       onClose();
+      // Recarrega a página para mostrar os dados novos imediatamente
+      window.location.reload();
 
     } catch (error) {
       console.error("Erro ao atualizar clube:", error);
-      alert("Erro ao salvar alterações.");
+      alert("Erro ao salvar alterações: " + (error.response?.data?.error || "Erro desconhecido"));
     } finally {
       setIsSubmitting(false);
     }

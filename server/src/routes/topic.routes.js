@@ -3,22 +3,28 @@ import {
     createTopic,
     listTopics,
     getTopicDetails,
-    replyToTopic
+    replyToTopic,
+    togglePinTopic,   // <--- NOVO
+    toggleLockTopic   // <--- NOVO
 } from '../controllers/topic.controller.js';
-import { authenticateToken } from '../middlewares/auth.middleware.js'; // <--- CORRIGIDO O NOME
+import { authenticateToken } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// Listar tópicos (ex: /api/topics?clubId=...)
+// Criar tópico
+router.post('/', authenticateToken, createTopic);
+
+// Listar tópicos (geralmente filtrado por ?clubId=...)
 router.get('/', listTopics);
 
-// Detalhes do tópico (ex: /api/topics/:id)
+// Ler detalhes de um tópico específico
 router.get('/:id', getTopicDetails);
 
-// Criar tópico (requer login)
-router.post('/', authenticateToken, createTopic); // <--- CORRIGIDO USO
+// Responder a um tópico
+router.post('/:id/reply', authenticateToken, replyToTopic);
 
-// Responder tópico (requer login)
-router.post('/:id/replies', authenticateToken, replyToTopic); // <--- CORRIGIDO USO
+// Rotas de Moderação (Novas)
+router.patch('/:id/pin', authenticateToken, togglePinTopic);
+router.patch('/:id/lock', authenticateToken, toggleLockTopic);
 
 export default router;
