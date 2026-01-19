@@ -6,6 +6,8 @@ import mediaRoutes from './routes/media.routes.js';
 import reviewRoutes from './routes/review.routes.js';
 import userRoutes from './routes/user.routes.js';
 import achievementRoutes from './routes/achievement.routes.js';
+import clubRoutes from './routes/club.routes.js';
+import topicRoutes from './routes/topic.routes.js'; // <--- NOVA IMPORTAÇÃO
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +28,8 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/achievements', achievementRoutes);
+app.use('/api/clubs', clubRoutes);
+app.use('/api/topics', topicRoutes); // <--- NOVA ROTA REGISTRADA
 
 app.get('/', (req, res) => {
     res.json({ status: 'online', message: 'Mazarbul API v1' });

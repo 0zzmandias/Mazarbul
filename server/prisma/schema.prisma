@@ -8,26 +8,41 @@ datasource db {
 }
 
 // ==========================================
+// ENUMS
+// ==========================================
+
+enum ClubRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// ==========================================
 // USUÁRIOS E PERFIL
 // ==========================================
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  handle    String   @unique
-  password  String
+  id       String @id @default(uuid())
+  email    String @unique
+  name     String?
+  handle   String @unique
+  password String
 
-  bio        String?  @db.Text
+  bio       String? @db.Text
   avatarUrl String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  reviews       Review[]
-  achievements  UserAchievement[]
-  favorites     MediaReference[] @relation("UserFavorites")
-  collections   Collection[]
+  reviews      Review[]
+  achievements UserAchievement[]
+  favorites    MediaReference[]  @relation("UserFavorites")
+  collections  Collection[]
+
+  // Relações de Clubes
+  clubMemberships ClubMember[]
+  topics          Topic[]
+  replies         Reply[]
 }
 
 // ==========================================
@@ -36,49 +51,52 @@ model User {
 
 model MediaReference {
   // ID canônico (QID) ou ID legado (ex: "tmdb_550", "ol_OL123W", "lastfm_xxx")
-  id          String   @id
+  id String @id
 
   // "filme" | "livro" | "jogo" | "album"
-  type        String
+  type String
 
   // { "PT": "...", "EN": "...", "ES": "...", "DEFAULT": "..." }
-  titles      Json
+  titles Json
 
-  synopses    Json?
+  synopses Json?
 
   posterUrl   String?
   backdropUrl String?
 
   releaseYear Int?
 
-  runtime      Int?
-  director    String?
+  runtime  Int?
+  director String?
 
   // UI-friendly (pode ser legado enquanto migramos)
-  genres      Json?
-  countries   Json?
+  genres    Json?
+  countries Json?
 
-  details     Json?
+  details Json?
 
   tags        String[]
   externalIds Json?
 
   // Canonicalização/performance
-  isStub          Boolean   @default(false)
-  lastFetchedAt   DateTime?
+  isStub        Boolean   @default(false)
+  lastFetchedAt DateTime?
   lastAccessedAt DateTime?
-  countrySource  String?
+  countrySource String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relacionamentos
-  favoritedBy User[]   @relation("UserFavorites")
-  reviews      Review[]
+  favoritedBy     User[]           @relation("UserFavorites")
+  reviews         Review[]
   collectionItems CollectionItem[]
 
-  aliases      MediaAlias[]
+  aliases     MediaAlias[]
   mediaGenres MediaGenre[]
+
+  // Relações de Clubes
+  clubWorks   ClubWork[]
 
   @@index([type])
   @@index([type, releaseYear])
@@ -90,21 +108,21 @@ model MediaReference {
 // ==========================================
 
 model MediaAlias {
-  id              String   @id
-  canonicalId      String
-  canonical        MediaReference @relation(fields: [canonicalId], references: [id], onDelete: Cascade)
+  id          String         @id
+  canonicalId String
+  canonical   MediaReference @relation(fields: [canonicalId], references: [id], onDelete: Cascade)
 
-  type            String   // "filme" | "livro" | "jogo" | "album"
-  lang            String   // "PT" | "EN" | "ES"
+  type String // "filme" | "livro" | "jogo" | "album"
+  lang String // "PT" | "EN" | "ES"
 
-  title            String
+  title           String
   titleRaw        String
   titleNormalized String
 
-  source          String   // "wikidata.label" | "wikidata.alias" | etc
-  lastAccessedAt  DateTime @default(now())
+  source         String   // "wikidata.label" | "wikidata.alias" | etc
+  lastAccessedAt DateTime @default(now())
 
-  createdAt        DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([lastAccessedAt])
   @@index([type, lang, titleNormalized])
@@ -116,13 +134,13 @@ model MediaAlias {
 
 model Genre {
   // Sugestão: usar o QID do gênero como id (ex: "Q132311")
-  id        String   @id
+  id String @id
 
   // slug limpo (ex: "fantasy")
-  slug      String   @unique
+  slug String @unique
 
   // { "PT": "Fantasia", "EN": "Fantasy", "ES": "Fantasía" }
-  titles    Json
+  titles Json
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -131,11 +149,11 @@ model Genre {
 }
 
 model MediaGenre {
-  mediaId   String
-  genreId   String
+  mediaId String
+  genreId String
 
-  media      MediaReference @relation(fields: [mediaId], references: [id], onDelete: Cascade)
-  genre      Genre          @relation(fields: [genreId], references: [id], onDelete: Cascade)
+  media MediaReference @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  genre Genre          @relation(fields: [genreId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -149,21 +167,21 @@ model MediaGenre {
 // ==========================================
 
 model Review {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  rating    Float
-  content   String?  @db.Text
-  tags      String[]
-  containsSpoilers Boolean @default(false)
+  rating           Float
+  content          String?  @db.Text
+  tags             String[]
+  containsSpoilers Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  mediaId   String
-  media     MediaReference @relation(fields: [mediaId], references: [id])
+  mediaId String
+  media   MediaReference @relation(fields: [mediaId], references: [id])
 }
 
 // ==========================================
@@ -176,8 +194,8 @@ model UserAchievement {
   unlockedAt    DateTime @default(now())
   progress      Int      @default(0)
 
-  userId        String
-  user          User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
   @@unique([userId, achievementId])
 }
@@ -192,13 +210,13 @@ model Collection {
   description String?  @db.Text
   isPublic    Boolean  @default(true)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  items       CollectionItem[]
+  items CollectionItem[]
 
   @@index([userId])
 }
@@ -209,9 +227,101 @@ model CollectionItem {
   mediaId      String
   addedAt      DateTime @default(now())
 
-  collection   Collection     @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-  media        MediaReference @relation(fields: [mediaId], references: [id])
+  collection Collection     @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  media      MediaReference @relation(fields: [mediaId], references: [id])
 
   @@unique([collectionId, mediaId]) // Evita duplicatas na mesma lista
   @@index([collectionId])
+}
+
+// ==========================================
+// CLUBES (SISTEMA DE COMUNIDADES)
+// ==========================================
+
+model Club {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique // <--- CAMPO ADICIONADO PARA O HANDLE
+  description String?  @db.Text
+  coverUrl    String?
+  isPublic    Boolean  @default(true) // Se false, precisa de convite/aprovação
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     ClubMember[]
+  works       ClubWork[]
+  topics      Topic[]
+}
+
+model ClubMember {
+  id        String   @id @default(uuid())
+  role      ClubRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  clubId    String
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, userId]) // Um usuário só pode entrar uma vez no mesmo clube
+  @@index([userId])
+  @@index([clubId])
+}
+
+model ClubWork {
+  id        String   @id @default(uuid())
+  status    String   @default("active") // "active", "completed", "planned"
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+
+  clubId    String
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  mediaId   String
+  media     MediaReference @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+}
+
+// ==========================================
+// FÓRUM DO CLUBE
+// ==========================================
+
+model Topic {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  isPinned  Boolean  @default(false)
+  isLocked  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clubId    String
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  replies   Reply[]
+
+  @@index([clubId])
+}
+
+model Reply {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([topicId])
 }
