@@ -63,6 +63,7 @@ export const searchMedia = async (req, res) => {
  */
 export const getMediaDetails = async (req, res) => {
     const { id } = req.params;
+    const { type: queryType } = req.query; // Captura o tipo da query string para auxiliar a hidratação de novas mídias
 
     // Parâmetro para forçar a atualização dos dados a partir das APIs
     const refreshParam = String(req.query.refresh || '').toLowerCase();
@@ -102,8 +103,14 @@ export const getMediaDetails = async (req, res) => {
             /**
              * 2. HIDRATAÇÃO: Se chegamos aqui, a mídia não existe ou precisa ser atualizada.
              * Chama o serviço que junta Wikidata + APIs específicas.
+             * AJUSTE: Passamos o queryType caso o banco ainda não conheça a mídia.
              */
-            await hydrateMediaReferenceByQid(id, { forceRefresh });
+            const typeToUse = queryType || cachedMedia?.type;
+
+            await hydrateMediaReferenceByQid(id, {
+                forceRefresh,
+                    type: typeToUse
+            });
 
             // Busca novamente os dados agora persistidos e hidratados
             const hydrated = await prisma.mediaReference.findUnique({
@@ -170,7 +177,7 @@ export const getMediaDetails = async (req, res) => {
             return res.status(404).json({ error: msg });
         }
 
-        if (msg.toLowerCase().includes('qid inválido') || msg.toLowerCase().includes('tipo de mídia não definido')) {
+        if (msg.toLowerCase().includes('qid inválido') || msg.toLowerCase().includes('tipo de mídia')) {
             return res.status(400).json({ error: msg });
         }
 

@@ -39,19 +39,19 @@ export const GENRE_MAP = {
         PT: "Fantasia",
         EN: "Fantasy",
         ES: "Fantasía",
-        QIDS: ["Q132311", "Q211059", "Q1762165"] // Fantasy, High Fantasy, Sword and Sorcery
+        QIDS: ["Q132311", "Q211059", "Q1762165", "Q202722"] // Fantasy, High Fantasy, Sword and Sorcery, Fantasy Novel
     },
     "sci_fi": {
         PT: "Ficção Científica",
         EN: "Science Fiction",
         ES: "Ciencia Ficción",
-        QIDS: ["Q164395", "Q469241", "Q182015"] // Sci-Fi, Space Opera, Cyberpunk
+        QIDS: ["Q164395", "Q469241", "Q182015", "Q24925"] // Sci-Fi, Space Opera, Cyberpunk, Science Fiction Literature
     },
     "action": {
         PT: "Ação",
         EN: "Action",
         ES: "Acción",
-        QIDS: ["Q188473", "Q170217", "Q200793"] // Action, Martial Arts, Adventure
+        QIDS: ["Q188473", "Q170217", "Q200793", "Q133292"] // Action, Martial Arts, Adventure
     },
     "horror": {
         PT: "Terror",
@@ -65,6 +65,12 @@ export const GENRE_MAP = {
         ES: "Romance",
         QIDS: ["Q1054574", "Q130232"] // Romance, Drama
     },
+    "novel": {
+        PT: "Ficção",
+        EN: "Fiction",
+        ES: "Ficción",
+        QIDS: ["Q8261", "Q7725634"] // Novel, Literary Work
+    },
     "mystery": {
         PT: "Mistério",
         EN: "Mystery",
@@ -75,7 +81,7 @@ export const GENRE_MAP = {
         PT: "Suspense",
         EN: "Thriller",
         ES: "Suspenso",
-        QIDS: ["Q24925", "Q132311"] // Thriller, Psychological Thriller
+        QIDS: ["Q16575965", "Q19765983"] // Thriller, Psychological Thriller
     }
 };
 
@@ -106,7 +112,7 @@ export const normalizeCountry = (isoCode) => {
  * @param {Array} wikidataGenres - Array de objetos { qid, titles } vindos da Wikidata
  */
 export const normalizeMediaGenres = (mediaType, wikidataGenres) => {
-    if (!Array.isArray(wikidataGenres)) return { PT: [], EN: [], ES: [] };
+    if (!Array.isArray(wikidataGenres)) return { PT: [], EN: [], ES: [], DEFAULT: [] };
 
     const isTranslatable = mediaType === 'filme' || mediaType === 'livro';
     const result = { PT: [], EN: [], ES: [] };
@@ -130,7 +136,7 @@ export const normalizeMediaGenres = (mediaType, wikidataGenres) => {
         } else {
             // 3. Se for Jogo/Álbum OU se não houver chave canônica,
             // usa o termo original (geralmente EN ou o label da Wikidata)
-            const original = genre.titles?.EN || genre.titles?.PT || "Generic";
+            const original = genre.titles?.PT || genre.titles?.EN || genre.titles?.DEFAULT || "Generic";
             result.PT.push(original);
             result.EN.push(original);
             result.ES.push(original);

@@ -1,14 +1,27 @@
 import axios from 'axios';
 
+/**
+ * RAWG ADAPTER
+ * Responsável pelo enriquecimento de dados de jogos.
+ * Segundo o planejamento:
+ * 1. Títulos, Sinopses e GÊNEROS são extraídos do RAWG.
+ * 2. Gêneros não são traduzidos (mantêm o original/EN do RAWG).
+ */
+
 const RAWG_API_URL = 'https://api.rawg.io/api';
 
 const rawgClient = axios.create({
-    baseURL: RAWG_API_URL
+    baseURL: RAWG_API_URL,
+    timeout: 10000
 });
 
+/**
+ * Busca dados detalhados de um jogo pelo ID do RAWG.
+ * @param {string|number} rawgId - O ID numérico da API RAWG.
+ */
 export const getGameData = async (rawgId) => {
     const apiKey = process.env.RAWG_API_KEY;
-    if (!apiKey) throw new Error("RAWG_API_KEY não configurada");
+    if (!apiKey) throw new Error("RAWG_API_KEY não configurada no ambiente.");
 
     try {
         const response = await rawgClient.get(`/games/${rawgId}`, {
@@ -16,93 +29,99 @@ export const getGameData = async (rawgId) => {
         });
 
         const data = response.data;
-        const releaseYear = data.released ? new Date(data.released).getFullYear() : null;
 
-        // === TAGS INTERNAS (Gamificação) ===
-        // Juntamos tags e gêneros para o sistema de troféus
-        const tags = data.tags ? data.tags.map(t => `tag.${t.slug}`) : [];
-        if (data.genres) {
-            data.genres.forEach(g => tags.push(`tag.${g.slug}`));
-        }
+        // Título e Sinopse: Mantemos o valor original (geralmente EN).
+        const mainTitle = data.name;
+        const mainSynopsis = data.description_raw || data.description || "";
 
-        // === DADOS TÉCNICOS ===
-        // Desenvolvedora Principal (equivale a Diretor em filmes)
-        const developer = data.developers && data.developers.length > 0 ? data.developers[0].name : null;
-
-        // Gêneros para exibição (RAWG retorna em inglês)
+        // GÊNEROS: Extraídos diretamente do RAWG conforme solicitado.
         const genreNames = data.genres ? data.genres.map(g => g.name) : [];
 
-        // Plataformas (Ex: ["PC", "PlayStation 5", "Xbox Series S/X"])
-        const platforms = data.platforms ? data.platforms.map(p => p.platform.name) : [];
+        // Desenvolvedora (Mapeado para 'director' no nosso schema centralizado)
+        const developer = data.developers && data.developers.length > 0 ? data.developers[0].name : null;
 
-        // Duração: RAWG manda em horas, convertemos para minutos
-        const runtimeMinutes = data.playtime ? data.playtime * 60 : null;
+        // Ano de lançamento
+        const releaseYear = data.released ? new Date(data.released).getFullYear() : null;
 
         return {
             id: `rawg_${data.id}`,
             type: 'jogo',
 
             titles: {
-                EN: data.name,
-                PT: data.name // RAWG raramente traduz títulos, usamos o original
-            },
-            synopses: {
-                EN: data.description_raw || data.description,
-                PT: data.description_raw || data.description // Fallback para EN
+                PT: mainTitle,
+                EN: mainTitle,
+                ES: mainTitle,
+                DEFAULT: mainTitle
             },
 
+            synopses: {
+                PT: mainSynopsis,
+                EN: mainSynopsis,
+                ES: mainSynopsis,
+                DEFAULT: mainSynopsis
+            },
+
+            // Imagens
             posterUrl: data.background_image,
-            // Jogos usam a mesma imagem para backdrop ou uma adicional se existir
             backdropUrl: data.background_image_additional || data.background_image,
 
+            // Dados Técnicos
             releaseYear,
-            runtime: runtimeMinutes,
-            director: developer, // Mapeado para Developer
+            director: developer,
 
-            // === NOVOS CAMPOS ===
+            // GÊNEROS DO RAWG: Respeita a regra de não tradução para jogos
             genres: {
+                PT: genreNames,
                 EN: genreNames,
-                PT: genreNames // Usamos EN como fallback visual para não quebrar a tela
+                ES: genreNames,
+                DEFAULT: genreNames
             },
 
-            countries: null, // Jogos raramente têm "país de origem" claro na API básica
-
-            // Campo flexível para dados específicos de jogos
             details: {
-                "Plataformas": platforms,
-                "Metacritic": data.metacritic
+                technical: {
+                    platforms: data.platforms ? data.platforms.map(p => p.platform.name) : [],
+                    metacritic: data.metacritic,
+                    playtime: data.playtime,
+                    website: data.website
+                }
             },
 
-            tags,
             externalIds: {
-                rawg: data.id.toString(),
-                website: data.website
+                rawg: String(data.id)
             }
         };
 
     } catch (error) {
-        console.error("Erro no RAWG Adapter:", error.message);
-        throw new Error("Falha ao buscar jogo.");
+        console.error("[RAWG Adapter] Erro ao buscar detalhes do jogo:", error.message);
+        return null;
     }
 };
 
+/**
+ * Busca simplificada para resultados de pesquisa.
+ */
 export const searchGames = async (query) => {
     const apiKey = process.env.RAWG_API_KEY;
-    if (!apiKey) throw new Error("RAWG_API_KEY não configurada");
+    if (!apiKey) return [];
 
-    const response = await rawgClient.get('/games', {
-        params: {
-            key: apiKey,
-            search: query,
-            page_size: 10
-        }
-    });
+    try {
+        const response = await rawgClient.get('/games', {
+            params: {
+                key: apiKey,
+                search: query,
+                page_size: 15
+            }
+        });
 
-    return response.data.results.map(game => ({
-        id: `rawg_${game.id}`,
-        title: game.name,
-        year: game.released ? game.released.split('-')[0] : '?',
-                                              poster: game.background_image,
-                                              type: 'jogo'
-    }));
+        return (response.data.results || []).map(game => ({
+            id: `rawg_${game.id}`,
+            title: game.name,
+            year: game.released ? game.released.split('-')[0] : null,
+                                                          poster: game.background_image,
+                                                          type: 'jogo'
+        }));
+    } catch (error) {
+        console.error("[RAWG Adapter] Erro na busca:", error.message);
+        return [];
+    }
 };

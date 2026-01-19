@@ -38,24 +38,21 @@ const requestWithRetry = async (makeRequest, { retries = 2 } = {}) => {
     throw lastError;
 };
 
+/**
+ * Normaliza o idioma da UI para o padrão da Wikidata.
+ * AJUSTE: Força o pt-br como prioridade absoluta para evitar nomes de Portugal.
+ */
 export const normalizeUiLangToWikidataLang = (lang) => {
-    if (!lang) return 'pt';
+    if (!lang) return 'pt-br';
 
     const normalized = String(lang).trim().toLowerCase();
 
-    if (normalized === 'pt') return 'pt';
-    if (normalized === 'en') return 'en';
-    if (normalized === 'es') return 'es';
-
-    if (normalized === 'pt-br' || normalized === 'pt_br') return 'pt';
-    if (normalized === 'en-us' || normalized === 'en_us') return 'en';
-    if (normalized === 'es-es' || normalized === 'es_es') return 'es';
-
-    if (normalized.startsWith('pt')) return 'pt';
+    // No Mazarbul, se for português, queremos explicitamente o Brasileiro (pt-br)
+    if (normalized.startsWith('pt')) return 'pt-br';
     if (normalized.startsWith('en')) return 'en';
     if (normalized.startsWith('es')) return 'es';
 
-    return 'pt';
+    return 'pt-br';
 };
 
 export const isQid = (value) => /^Q\d+$/.test(String(value ?? '').trim());
@@ -78,7 +75,11 @@ export const WD_PROPS = {
     TMDB_MOVIE_ID: 'P4947',
     RAWG_GAME_ID: 'P9968',
     OPEN_LIBRARY_ID: 'P648',
-    MUSICBRAINZ_RELEASE_GROUP_ID: 'P436'
+    MUSICBRAINZ_RELEASE_GROUP_ID: 'P436',
+
+    // Propriedades para expansão de séries e franquias
+    HAS_PART: 'P527',
+    PART_OF: 'P361'
 };
 
 export const PRIMARY_CREATOR_PROPS_BY_TYPE = {
@@ -147,7 +148,7 @@ export const parseWikidataTimeToYear = (timeString) => {
 
 const uniq = (arr) => Array.from(new Set(arr));
 
-const pickBestLabel = (labelsObj, langOrder = ['pt', 'en', 'es']) => {
+const pickBestLabel = (labelsObj, langOrder = ['pt-br', 'pt', 'en', 'es']) => {
     const labels = labelsObj ?? {};
     for (const lang of langOrder) {
         const v = labels?.[lang]?.value;
@@ -161,7 +162,8 @@ const pickBestLabel = (labelsObj, langOrder = ['pt', 'en', 'es']) => {
 
 export const getTitlesPTENES = (entity) => {
     const labels = entity?.labels ?? {};
-    const pt = labels?.pt?.value ?? null;
+    // AJUSTE: Prioriza pt-br para garantir que "Sociedade do Anel" apareça no lugar de "Irmandade"
+    const pt = labels?.['pt-br']?.value || labels?.pt?.value || null;
     const en = labels?.en?.value ?? null;
     const es = labels?.es?.value ?? null;
 
@@ -185,7 +187,7 @@ const getEntityCached = async ({ qid, languages, props, cache }) => {
     return entity ?? null;
 };
 
-export const searchEntities = async ({ query, language = 'pt', limit = 10 }) => {
+export const searchEntities = async ({ query, language = 'pt-br', limit = 10 }) => {
     if (!query || !String(query).trim()) {
         return [];
     }
@@ -220,7 +222,7 @@ export const searchEntities = async ({ query, language = 'pt', limit = 10 }) => 
 
 export const getEntities = async ({
     qids,
-    languages = ['pt', 'en', 'es'],
+    languages = ['pt-br', 'pt', 'en', 'es'],
     props = ['labels', 'aliases', 'descriptions', 'claims']
 }) => {
     const ids = Array.isArray(qids) ? qids : [qids];
@@ -250,7 +252,7 @@ export const getEntities = async ({
 
 export const getEntity = async ({
     qid,
-    languages = ['pt', 'en', 'es'],
+    languages = ['pt-br', 'pt', 'en', 'es'],
     props = ['labels', 'aliases', 'descriptions', 'claims']
 }) => {
     const entities = await getEntities({ qids: [qid], languages, props });
@@ -331,7 +333,7 @@ export const isBlockedByInstanceOf = ({ instanceOfQids, blockedInstanceOfQids })
     return false;
 };
 
-export const getLabelForQid = async ({ qid, uiLang = 'pt', cache }) => {
+export const getLabelForQid = async ({ qid, uiLang = 'pt-br', cache }) => {
     const lang = normalizeUiLangToWikidataLang(uiLang);
     const cacheKey = `${qid}|${lang}`;
 
@@ -341,17 +343,17 @@ export const getLabelForQid = async ({ qid, uiLang = 'pt', cache }) => {
 
     const entity = await getEntityCached({
         qid,
-        languages: [lang, 'en', 'pt', 'es'],
+        languages: [lang, 'pt-br', 'en', 'es'],
         props: ['labels'],
         cache
     });
 
-    const label = pickBestLabel(entity?.labels, [lang, 'en', 'pt', 'es']);
+    const label = pickBestLabel(entity?.labels, [lang, 'pt-br', 'en', 'es']);
     if (cache?.labels) cache.labels.set(cacheKey, label ?? null);
     return label ?? null;
 };
 
-export const getCountryIso2ByCountryQid = async ({ countryQid, uiLang = 'pt', cache }) => {
+export const getCountryIso2ByCountryQid = async ({ countryQid, uiLang = 'pt-br', cache }) => {
     if (!isQid(countryQid)) return null;
 
     if (cache?.countryIso2?.has(countryQid)) {
@@ -377,7 +379,7 @@ export const resolveGenreToRoot = async ({
     genreQid,
     genreRootQids,
     maxDepth = 8,
-    uiLang = 'pt',
+    uiLang = 'pt-br',
     cache
 }) => {
     if (!isQid(genreQid)) return null;
@@ -433,7 +435,7 @@ export const resolveCanonicalGenres = async ({
     genreRootQids,
     maxGenres = 2,
     maxDepth = 8,
-    uiLang = 'pt',
+    uiLang = 'pt-br',
     cache
 }) => {
     const list = Array.isArray(genreQids) ? genreQids.filter(isQid) : [];
@@ -462,7 +464,7 @@ export const resolveCanonicalGenres = async ({
 export const buildTechnicalDetailsFromWikidata = async ({
     qid,
     type,
-    uiLang = 'pt',
+    uiLang = 'pt-br',
     blockedInstanceOfQids = [],
     genreRootQids = [],
     maxGenres = 2,
@@ -473,7 +475,7 @@ export const buildTechnicalDetailsFromWikidata = async ({
 
     const entity = await getEntityCached({
         qid,
-        languages: [lang, 'en', 'pt', 'es'],
+        languages: [lang, 'pt-br', 'en', 'es'],
         props: ['labels', 'aliases', 'descriptions', 'claims'],
         cache: localCache
     });
@@ -526,7 +528,7 @@ export const buildTechnicalDetailsFromWikidata = async ({
     for (const gq of canonicalGenreQids) {
         const gEntity = await getEntityCached({
             qid: gq,
-            languages: [lang, 'en', 'pt', 'es'],
+            languages: [lang, 'pt-br', 'en', 'es'],
             props: ['labels'],
             cache: localCache
         });
@@ -542,23 +544,17 @@ export const buildTechnicalDetailsFromWikidata = async ({
         type,
         found: true,
         blocked: false,
-
         titles,
-
         year: extracted.year ?? null,
-
         primaryCreator: {
             qid: primaryCreatorQid,
             name: primaryCreatorName
         },
-
         country: {
             qid: countryQid,
             iso2: countryIso2
         },
-
         genres,
-
         externalIds: extracted.externalIds
     };
 };

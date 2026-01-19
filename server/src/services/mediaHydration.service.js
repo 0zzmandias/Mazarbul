@@ -6,7 +6,6 @@ import * as lastfm from '../utils/lastfm.adapter.js';
 
 import {
     getEntities,
-    searchEntities,
     buildTechnicalDetailsFromWikidata,
     isQid
 } from '../utils/wikidata.adapter.js';
@@ -18,24 +17,23 @@ import {
 
 /**
  * MEDIA HYDRATION SERVICE
- * * Responsável pela consolidação e persistência de mídias no Banco de Dados.
+ * * Responsável pela consolidação e persistência definitiva de mídias no Banco de Dados.
  * REGRAS DO PLANO:
- * - Wikidata: Fonte da Identidade (QID), Títulos, Diretor, Ano, País e Gêneros.
- * - APIs Específicas: Fonte de Sinopse e Imagens.
- * - Gêneros: Redução (Funil) -> Tradução Condicional.
- * - Países: Internacionalizados em 3 línguas (PT, EN, ES).
- * - Duração (Runtime): Descartado.
+ * 1. Identidade: Baseada no QID único da Wikidata.
+ * 2. Dados Técnicos: Autoridade da WIKIDATA para Diretor/Autor, Ano, País e Gêneros.
+ * 3. Conteúdo: APIs (TMDB/Google Books/RAWG) fornecem Sinopses e Capas trilingues.
+ * 4. Normalização: Países como objetos {PT, EN, ES} e Gêneros via Funil de Redução.
  */
 
 const now = () => new Date();
 
-// --- HELPERS DE APOIO ---
+// ==========================================
+// 1. HELPERS DE APOIO E FORMATAÇÃO
+// ==========================================
 
 const pickFirst = (...values) => {
     for (const v of values) {
-        if (v == null) continue;
-        if (typeof v === 'string' && !v.trim()) continue;
-        return v;
+        if (v != null && typeof v === 'string' && v.trim()) return v;
     }
     return null;
 };
@@ -46,10 +44,12 @@ String(value || '')
 .normalize('NFD')
 .replace(/[\u0300-\u036f]/g, '')
 .replace(/[^a-z0-9\s-]/g, ' ')
-.replace(/\s+/g, ' ')
 .trim()
 .replace(/\s+/g, '-');
 
+/**
+ * Garante que o objeto de títulos tenha a estrutura PT, EN, ES, DEFAULT.
+ */
 const ensureTitlesShape = (titles) => {
     const t = titles && typeof titles === 'object' ? { ...titles } : {};
     if (!('PT' in t)) t.PT = null;
@@ -64,11 +64,12 @@ const ensureTitlesShape = (titles) => {
 
 /**
  * Aplica internacionalização de títulos conforme o tipo de mídia.
+ * CORREÇÃO DEFINITIVA: Para Livros e Filmes, preservamos as traduções individuais.
  */
 const applyTitleRulesByType = (type, titles) => {
     const t = ensureTitlesShape(titles);
 
-    // Jogos e Álbuns: Mantém título original/global (EN).
+    // Jogos e Álbuns: Mantêm o título global (geralmente em Inglês)
     if (type === 'jogo' || type === 'album') {
         const base = pickFirst(t.EN, t.PT, t.ES, t.DEFAULT, null);
         return {
@@ -79,17 +80,18 @@ const applyTitleRulesByType = (type, titles) => {
         };
     }
 
-    // Filmes e Livros: Títulos traduzidos oficialmente.
-    const base = pickFirst(t.PT, t.EN, t.ES, t.DEFAULT, null);
+    // Filmes e Livros: Respeitam as traduções oficiais da Wikidata.
     return {
-        PT: t.PT || base,
-        EN: t.EN || base,
-        ES: t.ES || base,
-        DEFAULT: base,
+        PT: t.PT || t.DEFAULT,
+        EN: t.EN || t.DEFAULT,
+        ES: t.ES || t.DEFAULT,
+        DEFAULT: t.DEFAULT,
     };
 };
 
-// --- RESOLUÇÃO DE DADOS EXTERNOS ---
+// ==========================================
+// 2. RESOLUÇÃO DE DADOS TÉCNICOS ADICIONAIS
+// ==========================================
 
 const unwrapEntitiesMap = (entitiesResponse) => {
     if (!entitiesResponse) return {};
@@ -109,14 +111,25 @@ const extractClaimString = (entity, pid) => {
 };
 
 /**
- * Resolve o ISO2 de um país para o formato trilingue do Mazarbul.
+ * Extrai o ID de uma entidade (QID) de um claim da Wikidata.
+ */
+const extractClaimEntityId = (entity, pid) => {
+    const claims = entity?.claims || {};
+    const arr = claims?.[pid];
+    if (!Array.isArray(arr)) return null;
+    const id = arr[0]?.mainsnak?.datavalue?.value?.id;
+    return isQid(id) ? id : null;
+};
+
+/**
+ * Resolve o objeto de país trilingue a partir de um QID de país.
  */
 const resolveCountryObject = async (countryQid) => {
     if (!isQid(countryQid)) return null;
 
     const entitiesRes = await getEntities({
         qids: [countryQid],
-        languages: ['en'],
+        languages: ['en', 'pt', 'es'],
         props: ['claims'],
     });
 
@@ -129,17 +142,15 @@ const resolveCountryObject = async (countryQid) => {
 };
 
 // ==========================================
-// ENRIQUECIMENTO DE APIs (CONTEÚDO)
+// 3. ENRIQUECIMENTO VIA APIs DE CONTEÚDO
 // ==========================================
 
-const enrichFromApis = async ({ type, externalIds, canonicalTitle, canonicalCreatorName }) => {
+const enrichFromApis = async ({ type, externalIds, titles, canonicalTitle, canonicalCreatorName }) => {
+    // FILMES: TMDB
     if (type === 'filme') {
         const tmdbId = externalIds?.tmdb || null;
         if (!tmdbId) return {};
-
-        // TMDB fornece exclusivamente Sinopse e Imagem.
         const data = await tmdb.getMovieData(tmdbId);
-
         return {
             synopses: data?.synopses || null,
             posterUrl: data?.posterUrl || null,
@@ -147,38 +158,41 @@ const enrichFromApis = async ({ type, externalIds, canonicalTitle, canonicalCrea
         };
     }
 
+    // LIVROS: GOOGLE BOOKS
     if (type === 'livro') {
-        const workId = externalIds?.openLibraryWorkId || externalIds?.openLibrary || null;
-        if (!workId) return {};
-        const data = await books.getBookData(`ol_${workId}`);
+        const data = await books.getBookEnrichment({
+            titles,
+            author: canonicalCreatorName
+        });
         return {
             synopses: data?.synopses || null,
             posterUrl: data?.posterUrl || null,
-            backdropUrl: data?.backdropUrl || null,
+            backdropUrl: null,
         };
     }
 
+    // JOGOS: RAWG
     if (type === 'jogo') {
         const rawgId = externalIds?.rawg || null;
         if (!rawgId) return {};
         const data = await rawg.getGameData(rawgId);
+        // AJUSTE: Retornamos também os gêneros originais do RAWG para evitar o Funil da Wikidata em jogos
         return {
             synopses: data?.synopses || null,
             posterUrl: data?.posterUrl || null,
             backdropUrl: data?.backdropUrl || null,
-            details: data?.details || null,
+            genres: data?.genres || null
         };
     }
 
+    // MÚSICA: LastFM
     if (type === 'album') {
         const mbid = pickFirst(externalIds?.musicbrainzReleaseGroup, externalIds?.mbid, null);
         if (!mbid) return {};
-
         const data = await lastfm.getAlbumData(mbid);
         return {
             synopses: data?.synopses || null,
             posterUrl: data?.posterUrl || null,
-            details: data?.details || null,
         };
     }
 
@@ -186,16 +200,29 @@ const enrichFromApis = async ({ type, externalIds, canonicalTitle, canonicalCrea
 };
 
 // --- CONFIGURAÇÕES DE FILTRO ---
-const BLOCKED_INSTANCE_OF_QIDS = ['Q24856', 'Q277759', 'Q7058673', 'Q196600'];
-const GENRE_ROOT_QIDS = ['Q132311', 'Q24925', 'Q16575965', 'Q19765983', 'Q1762165', 'Q21802675', 'Q40831', 'Q25372'];
+const BLOCKED_INSTANCE_OF_QIDS = [
+    'Q24856', 'Q277759', 'Q7058673', 'Q196600',
+'Q235545', 'Q334335', 'Q5398426'
+];
+
+// QIDs para o Funil de Redução de Gêneros
+const GENRE_ROOT_QIDS = [
+    'Q132311', 'Q24925', 'Q16575965', 'Q19765983',
+'Q1762165', 'Q21802675', 'Q40831', 'Q8261', 'Q11406', 'Q133292'
+];
 
 // ==========================================
-// FUNÇÃO PRINCIPAL: HIDRATAÇÃO
+// 4. FUNÇÃO PRINCIPAL DE HIDRATAÇÃO
 // ==========================================
 
-export const hydrateMediaReferenceByQid = async (qid, { forceRefresh = false } = {}) => {
+/**
+ * Hidrata uma MediaReference usando o QID como âncora de identidade.
+ * @param {string} qid - Identificador único da Wikidata.
+ * @param {object} options - Opções (forceRefresh, type).
+ */
+export const hydrateMediaReferenceByQid = async (qid, { forceRefresh = false, type: providedType = null } = {}) => {
     const canonicalId = String(qid || '').trim();
-    if (!isQid(canonicalId)) throw new Error('QID inválido.');
+    if (!isQid(canonicalId)) throw new Error('QID inválido para hidratação.');
 
     const accessedAt = now();
 
@@ -203,7 +230,7 @@ export const hydrateMediaReferenceByQid = async (qid, { forceRefresh = false } =
         where: { id: canonicalId },
     });
 
-    // Se já estiver no banco e completo, apenas atualiza acesso
+    // Se já estiver no banco, estiver completa e não for solicitado refresh, apenas atualiza o acesso
     if (existing && existing.isStub === false && !forceRefresh) {
         await prisma.mediaReference.update({
             where: { id: canonicalId },
@@ -212,12 +239,12 @@ export const hydrateMediaReferenceByQid = async (qid, { forceRefresh = false } =
         return existing;
     }
 
-    const type = existing?.type || null;
-    if (!type) throw new Error('Tipo de mídia ausente. Execute a busca primeiro.');
+    // CORREÇÃO DO ERRO DE TIPO: Determina o tipo via banco ou via parâmetro fornecido no controller
+    const type = providedType || existing?.type || null;
+    if (!type) throw new Error('Tipo de mídia ausente no registro da MediaReference.');
 
     /**
      * PASSO 1: DADOS TÉCNICOS (WIKIDATA)
-     * Fonte de: Títulos, Diretor/Autor, Ano, País e Gêneros.
      */
     const technical = await buildTechnicalDetailsFromWikidata({
         qid: canonicalId,
@@ -228,65 +255,74 @@ export const hydrateMediaReferenceByQid = async (qid, { forceRefresh = false } =
     });
 
     if (!technical || technical.found === false) throw new Error('Mídia não encontrada na Wikidata.');
-    if (technical.blocked) throw new Error(technical.reason || 'Mídia bloqueada por política de conteúdo.');
+    if (technical.blocked) throw new Error('Entidade bloqueada por ser uma série ou franquia genérica.');
 
     const titles = applyTitleRulesByType(type, technical.titles);
-    const canonicalTitle = pickFirst(titles.DEFAULT, titles.EN, titles.PT, titles.ES, null);
-
-    const externalIds = {
-        ...(existing?.externalIds || {}),
-        ...(technical.externalIds || {}),
-        wikidata: canonicalId,
-    };
-
     const creatorName = technical.primaryCreator?.name || null;
 
     /**
-     * PASSO 2: CONTEÚDO (APIs ESPECÍFICAS)
-     * Fonte de: Sinopses e Posters.
+     * PASSO 2: CONTEÚDO (APIs EXTERNAS)
      */
     const enrichment = await enrichFromApis({
         type,
-        externalIds,
-        canonicalTitle,
-        canonicalCreatorName: creatorName
+        externalIds: {
+            ...(existing?.externalIds || {}),
+                                            ...(technical.externalIds || {}),
+                                            wikidata: canonicalId
+        },
+        titles,
+        canonicalTitle: pickFirst(titles.DEFAULT, titles.EN, titles.PT, titles.ES, null),
+                                            canonicalCreatorName: creatorName
     });
 
     /**
-     * PASSO 3: NORMALIZAÇÃO (MOTOR GERAL)
-     * Aplica o "Funil" de Gêneros e a Tradução de Países.
+     * PASSO 3: NORMALIZAÇÃO E RESOLUÇÃO DE PAÍS
      */
-
-    // Normalização do País (Trilingue)
     let countryData = technical.country?.iso2 ? normalizeCountry(technical.country.iso2) : null;
     if (!countryData && technical.country?.qid) {
         countryData = await resolveCountryObject(technical.country.qid);
     }
 
-    // Normalização de Gêneros (Redução + Tradução Condicional)
-    const genresTrilingual = normalizeMediaGenres(type, technical.genres);
+    // LÓGICA DE FALLBACK PARA JOGOS: Busca país sede da desenvolvedora
+    if (!countryData && type === 'jogo' && technical.primaryCreator?.qid) {
+        try {
+            const devRes = await getEntities({
+                qids: [technical.primaryCreator.qid],
+                props: ['claims']
+            });
+            const devEntity = unwrapEntitiesMap(devRes)?.[technical.primaryCreator.qid];
+            const countryIdFromDev = extractClaimEntityId(devEntity, 'P17');
+            if (countryIdFromDev) {
+                countryData = await resolveCountryObject(countryIdFromDev);
+            }
+        } catch (err) {
+            console.error('[Hydration] Falha no fallback de país da desenvolvedora:', err.message);
+        }
+    }
 
-    // Estrutura interna para o campo 'details' do banco
+    // NORMALIZAÇÃO DE GÊNEROS: Jogos usam dados do RAWG; outros usam Funil da Wikidata.
+    let genresTrilingual;
+    if (type === 'jogo' && enrichment.genres) {
+        genresTrilingual = enrichment.genres;
+    } else {
+        genresTrilingual = normalizeMediaGenres(type, technical.genres);
+    }
+
     const canonicalGenres = Array.isArray(technical.genres)
-    ? technical.genres.slice(0, 2).map((g) => {
-        const label = pickFirst(g?.titles?.EN, g?.titles?.PT, g?.titles?.ES, null);
-        return {
-            qid: g?.qid || null,
-            slug: label ? normalizeSlug(label) : null,
-                                       titles: g?.titles || null,
-        };
-    }).filter((g) => isQid(g.qid))
-    : [];
+    ? technical.genres.slice(0, 2).map((g) => ({
+        qid: g?.qid || null,
+        slug: (g?.titles?.EN || g?.titles?.DEFAULT) ? normalizeSlug(g.titles.EN || g.titles.DEFAULT) : null,
+                                               titles: g?.titles || null,
+    })) : [];
 
     const mergedDetails = {
         ...(existing?.details || {}),
-        ...(enrichment.details || {}),
         technical: {
             qid: canonicalId,
             type,
             releaseYear: technical.year ?? null,
             creator: technical.primaryCreator || null,
-            country: countryData, // Objeto {PT, EN, ES}
+            country: countryData,
             genres: canonicalGenres,
         },
     };
@@ -298,24 +334,20 @@ export const hydrateMediaReferenceByQid = async (qid, { forceRefresh = false } =
         id: canonicalId,
         type,
         titles,
-
-        // Dados Técnicos (WIKIDATA)
         releaseYear: technical.year ?? existing?.releaseYear ?? null,
         director: creatorName ?? existing?.director ?? null,
-
-        // Gêneros e Países Normalizados
         genres: genresTrilingual,
-        countries: countryData, // Salva o objeto trilingue para o Front
-
-        // Conteúdo (APIs)
+        countries: countryData,
         synopses: enrichment?.synopses ?? existing?.synopses ?? null,
         posterUrl: enrichment?.posterUrl ?? existing?.posterUrl ?? null,
         backdropUrl: enrichment?.backdropUrl ?? existing?.backdropUrl ?? null,
-
         details: mergedDetails,
-        externalIds: externalIds,
+        externalIds: {
+            ...(existing?.externalIds || {}),
+            ...(technical.externalIds || {}),
+            wikidata: canonicalId
+        },
         tags: existing?.tags ?? [],
-
         isStub: false,
         lastFetchedAt: accessedAt,
         lastAccessedAt: accessedAt,
