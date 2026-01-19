@@ -7,6 +7,7 @@ import React from "react";
  * - País: Exibe o valor traduzido vindo do objeto trilingue do backend.
  * - Duração: Campo removido conforme solicitação.
  * - Gêneros: Exibe os gêneros limpos e reduzidos.
+ * - Ordem Álbum: Artista, Gênero, Ano, País.
  */
 export default function TechnicalDetails({ details, type, t, lang }) {
   if (!details) {
@@ -16,19 +17,52 @@ export default function TechnicalDetails({ details, type, t, lang }) {
   // Normaliza o código do idioma para bater com as chaves do banco (PT, EN, ES)
   const safeLang = (lang || "PT").split("-")[0].toUpperCase();
 
-  // Labels específicas para música
+  // Labels específicas para música (Fallbacks mantidos para segurança)
   const albumArtistLabel =
   safeLang === "EN" ? "Artist" : safeLang === "ES" ? "Artista" : "Artista";
-
-  const albumTracksLabel =
-  safeLang === "EN" ? "Tracks" : safeLang === "ES" ? "Pistas" : "Faixas";
 
   /**
    * Helper: Busca o primeiro valor existente dentre as chaves fornecidas.
    * Útil para manter compatibilidade entre nomes de chaves do banco e stubs.
    */
   const getValue = (keys) => {
+    // 1. Tenta buscar no objeto técnico padronizado (Hydration Service Novo)
+    const tech = details.technical || {};
+    const techMap = {
+      "Ano": tech.releaseYear,
+      "year": tech.releaseYear,
+      "Gênero": tech.genres,
+      "Gêneros": tech.genres,
+      "genres": tech.genres,
+      "País": tech.country,
+      "country": tech.country,
+      "countries": tech.country,
+      "Direção": tech.creator?.name,
+      "Diretor": tech.creator?.name,
+      "director": tech.creator?.name,
+      "Autor": tech.creator?.name,
+      "author": tech.creator?.name,
+      "Desenvolvedora": tech.creator?.name,
+      "developer": tech.creator?.name,
+      "Artista": tech.creator?.name,
+      "artist": tech.creator?.name
+    };
+
     for (const k of keys) {
+      if (techMap[k] != null) return techMap[k];
+    }
+
+    // 2. Fallback: Busca nas versões traduzidas das chaves na raiz do details (Dados Antigos)
+    const expandedKeys = [...keys];
+    if (keys.includes("Ano")) expandedKeys.push(t("details.year"));
+    if (keys.includes("Gênero") || keys.includes("Gêneros")) expandedKeys.push(t("details.genre"));
+    if (keys.includes("País")) expandedKeys.push(t("details.country"));
+    if (keys.includes("Direção")) expandedKeys.push(t("details.director"));
+    if (keys.includes("Autor")) expandedKeys.push(t("details.author"));
+    if (keys.includes("Desenvolvedora")) expandedKeys.push(t("details.developer"));
+    if (keys.includes("Artista")) expandedKeys.push(t("details.artist"));
+
+    for (const k of expandedKeys) {
       if (k == null) continue;
       if (details[k] != null) return details[k];
     }
@@ -50,6 +84,12 @@ export default function TechnicalDetails({ details, type, t, lang }) {
     if (Array.isArray(value)) {
       displayValue = value
       .map((item) => {
+        // Se for objeto de gênero da Wikidata { titles: { PT... } }
+        if (typeof item === "object" && item.titles) {
+          return item.titles[safeLang] || item.titles["DEFAULT"] || item.titles["EN"];
+        }
+        // Se for objeto simples com propriedade name
+        if (typeof item === "object" && item.name) return item.name;
         // Se for uma string de tradução (tag.xyz), usa a função t()
         if (typeof item === "string" && item.includes("tag.")) return t(item);
         return item;
@@ -123,9 +163,9 @@ export default function TechnicalDetails({ details, type, t, lang }) {
     {/* --- DETALHES PARA JOGOS --- */}
     {type === "jogo" && (
       <>
-      {renderDetailItem("Desenvolvedora", getValue(["Desenvolvedora"]))}
-      {renderDetailItem("Plataformas", getValue(["Plataformas"]))}
-      {renderDetailItem("Metacritic", getValue(["Metacritic"]))}
+      {renderDetailItem("details.developer", getValue(["Desenvolvedora", "developer"]))}
+      {renderDetailItem("Plataformas", getValue(["Plataformas", "platforms"]))}
+      {renderDetailItem("Metacritic", getValue(["Metacritic", "metacritic"]))}
       {renderDetailItem(
         "details.genre",
         getValue(["Gêneros", "Gênero", "genres"])
@@ -138,8 +178,7 @@ export default function TechnicalDetails({ details, type, t, lang }) {
     {/* --- DETALHES PARA ÁLBUNS --- */}
     {type === "album" && (
       <>
-      {renderDetailItem(albumArtistLabel, getValue(["Artista"]))}
-      {renderDetailItem(albumTracksLabel, getValue(["Faixas"]))}
+      {renderDetailItem("details.artist", getValue(["Artista", "artist", albumArtistLabel]))}
       {renderDetailItem(
         "details.genre",
         getValue(["Gêneros", "Gênero", "genres"])

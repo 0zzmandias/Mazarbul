@@ -653,71 +653,99 @@ export const getAlbumData = async (externalId) => {
 
             const basics = await lookupReleaseGroupBasics(releaseGroupMbid);
             if (!basics?.artist || !basics?.title) {
-                throw new Error('Release group inválido ou incompleto no MusicBrainz.');
+                artistForLastFm = null;
+                albumForLastFm = null;
+            } else {
+                artistForLastFm = basics.artist;
+                albumForLastFm = basics.title;
+                firstReleaseYearFromMb = basics.firstReleaseYear || null;
+
+                const rgTracks = await buildBonusSectionsFromReleaseGroup(releaseGroupMbid, basics.title);
+                mbBaseTracks = rgTracks.baseTracks;
+                mbBonusSections = rgTracks.bonusSections || [];
             }
 
-            artistForLastFm = basics.artist;
-            albumForLastFm = basics.title;
-            firstReleaseYearFromMb = basics.firstReleaseYear || null;
-
-            const rgTracks = await buildBonusSectionsFromReleaseGroup(releaseGroupMbid, basics.title);
-            mbBaseTracks = rgTracks.baseTracks;
-            mbBonusSections = rgTracks.bonusSections || [];
-
-            album = await fetchLastFmAlbumInfoByArtistAlbum({
-                artist: artistForLastFm,
-                album: albumForLastFm,
-                lang: 'pt',
-            });
+            try {
+                if (artistForLastFm && albumForLastFm) {
+                    album = await fetchLastFmAlbumInfoByArtistAlbum({
+                        artist: artistForLastFm,
+                        album: albumForLastFm,
+                        lang: 'pt',
+                    });
+                }
+            } catch (e) {
+                album = null;
+            }
         } else if (parsed.mode === 'mbid') {
             lastfmAlbumMbid = parsed.mbid;
-            album = await fetchLastFmAlbumInfoByMbid({ mbid: lastfmAlbumMbid, lang: 'pt' });
-            if (!album) throw new Error('Álbum não encontrado no LastFM.');
 
-            const candidateMbid = String(album.mbid || lastfmAlbumMbid || '').trim();
+            try {
+                album = await fetchLastFmAlbumInfoByMbid({ mbid: lastfmAlbumMbid, lang: 'pt' });
+            } catch (err) {
+                if (err.response && err.response.status === 404) {
+                    album = null;
+                } else {
+                    throw err;
+                }
+            }
+
+            const candidateMbid = String(album?.mbid || lastfmAlbumMbid || '').trim();
             releaseGroupMbid = await resolveReleaseGroupMbid(candidateMbid);
 
             if (releaseGroupMbid) {
                 const basics = await lookupReleaseGroupBasics(releaseGroupMbid);
-                firstReleaseYearFromMb = basics?.firstReleaseYear || null;
+                if (basics) {
+                    firstReleaseYearFromMb = basics.firstReleaseYear || null;
+                    artistForLastFm = basics.artist;
+                    albumForLastFm = basics.title;
 
-                if (basics?.title) {
-                    const rgTracks = await buildBonusSectionsFromReleaseGroup(releaseGroupMbid, basics.title);
-                    mbBaseTracks = rgTracks.baseTracks;
-                    mbBonusSections = rgTracks.bonusSections || [];
+                    if (basics.title) {
+                        const rgTracks = await buildBonusSectionsFromReleaseGroup(releaseGroupMbid, basics.title);
+                        mbBaseTracks = rgTracks.baseTracks;
+                        mbBonusSections = rgTracks.bonusSections || [];
+                    }
+                }
+
+                if (!album && artistForLastFm && albumForLastFm) {
+                    try {
+                        album = await fetchLastFmAlbumInfoByArtistAlbum({
+                            artist: artistForLastFm,
+                            album: albumForLastFm,
+                            lang: 'pt',
+                        });
+                    } catch (e) {
+                        album = null;
+                    }
                 }
             }
-
-            const albumName = String(album.name || '').trim();
-            const artistName =
-            (typeof album.artist === 'string' && album.artist.trim()) ||
-            (typeof album.artist?.name === 'string' && album.artist.name.trim()) ||
-            null;
-
-            artistForLastFm = artistName;
-            albumForLastFm = albumName;
         } else if (parsed.mode === 'artist_album') {
             artistForLastFm = parsed.artist;
             albumForLastFm = parsed.album;
 
-            album = await fetchLastFmAlbumInfoByArtistAlbum({
-                artist: artistForLastFm,
-                album: albumForLastFm,
-                lang: 'pt',
-            });
-            if (!album) throw new Error('Álbum não encontrado no LastFM.');
+            try {
+                album = await fetchLastFmAlbumInfoByArtistAlbum({
+                    artist: artistForLastFm,
+                    album: albumForLastFm,
+                    lang: 'pt',
+                });
+            } catch (e) {
+                album = null;
+            }
 
-            const candidateMbid = String(album.mbid || '').trim();
-            if (looksLikeMbid(candidateMbid)) {
-                releaseGroupMbid = await resolveReleaseGroupMbid(candidateMbid);
-                if (releaseGroupMbid) {
-                    const basics = await lookupReleaseGroupBasics(releaseGroupMbid);
-                    firstReleaseYearFromMb = basics?.firstReleaseYear || null;
-
-                    if (basics?.title) {
-                        const rgTracks = await buildBonusSectionsFromReleaseGroup(releaseGroupMbid, basics.title);
-                        mbBaseTracks = rgTracks.baseTracks;
-                        mbBonusSections = rgTracks.bonusSections || [];
+            if (album) {
+                const candidateMbid = String(album.mbid || '').trim();
+                if (looksLikeMbid(candidateMbid)) {
+                    releaseGroupMbid = await resolveReleaseGroupMbid(candidateMbid);
+                    if (releaseGroupMbid) {
+                        const basics = await lookupReleaseGroupBasics(releaseGroupMbid);
+                        if (basics) {
+                            firstReleaseYearFromMb = basics.firstReleaseYear || null;
+                            if (basics.title) {
+                                const rgTracks = await buildBonusSectionsFromReleaseGroup(releaseGroupMbid, basics.title);
+                                mbBaseTracks = rgTracks.baseTracks;
+                                mbBonusSections = rgTracks.bonusSections || [];
+                            }
+                        }
                     }
                 }
             }
@@ -725,23 +753,21 @@ export const getAlbumData = async (externalId) => {
             throw new Error('ID de álbum inválido.');
         }
 
-        if (!album) throw new Error('Álbum não encontrado no LastFM.');
-
-        const albumName = String(album.name || albumForLastFm || '').trim() || 'Sem Título';
+        const albumName = String(album?.name || albumForLastFm || '').trim() || 'Sem Título';
         const artistName =
-        (typeof album.artist === 'string' && album.artist.trim()) ||
-        (typeof album.artist?.name === 'string' && album.artist.name.trim()) ||
+        (typeof album?.artist === 'string' && album.artist.trim()) ||
+        (typeof album?.artist?.name === 'string' && album.artist.name.trim()) ||
         artistForLastFm ||
         'Artista Desconhecido';
 
             const releaseYear =
             firstReleaseYearFromMb ||
-            extractYear(album.releasedate) ||
-            extractYear(album.wiki?.published) ||
-            extractYear(album.wiki?.content) ||
+            extractYear(album?.releasedate) ||
+            extractYear(album?.wiki?.published) ||
+            extractYear(album?.wiki?.content) ||
             null;
 
-            const rawTags = album.tags?.tag;
+            const rawTags = album?.tags?.tag;
             const tagsListRaw = Array.isArray(rawTags)
             ? rawTags.map((t) => (typeof t === 'string' ? t : t?.name)).filter(Boolean)
             : rawTags
@@ -766,8 +792,8 @@ export const getAlbumData = async (externalId) => {
 
             const tags = tagsList.map(normalizeTagToInternal).filter(Boolean);
 
-            const posterUrl = pickBestImage(album.image);
-            const synopsisCandidate = cleanupSummary(album.wiki?.summary) || cleanupSummary(album.wiki?.content);
+            const posterUrl = album ? pickBestImage(album.image) : null;
+            const synopsisCandidate = album ? (cleanupSummary(album.wiki?.summary) || cleanupSummary(album.wiki?.content)) : null;
 
             const canonicalExternalId = releaseGroupMbid
             ? `rg_${releaseGroupMbid}`
@@ -799,7 +825,7 @@ export const getAlbumData = async (externalId) => {
             const mainTracks =
             (Array.isArray(mbBaseTracks) && mbBaseTracks.length > 0)
             ? mbBaseTracks
-            : buildTracklistFromLastFm(album);
+            : (album ? buildTracklistFromLastFm(album) : []);
 
             const bonusSections =
             Array.isArray(mbBonusSections) && mbBonusSections.length > 0
@@ -826,23 +852,22 @@ export const getAlbumData = async (externalId) => {
 
                 details: {
                     Artista: artistName,
-                    Faixas: Array.isArray(mainTracks) ? mainTracks.length : null,
                     Tracklist: Array.isArray(mainTracks) ? mainTracks : [],
                     BonusSections: bonusSections,
                 },
 
                 tags,
                 externalIds: {
-                    mbid: String(album.mbid || lastfmAlbumMbid || '').trim() || null,
+                    mbid: String(album?.mbid || lastfmAlbumMbid || '').trim() || null,
                     releaseGroupMbid: releaseGroupMbid || null,
-                    lastfm: album.url || null,
+                    lastfm: album?.url || null,
                     artist: artistName,
                     album: albumName,
                 },
             };
     } catch (error) {
         console.error('Erro no LastFM Adapter:', error.message);
-        throw new Error('Falha ao buscar álbum.');
+        return null;
     }
 };
 

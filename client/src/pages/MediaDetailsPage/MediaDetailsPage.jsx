@@ -193,7 +193,8 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
       genresList = rawGenresList
       .map((g) => {
         const name = typeof g === "object" && g !== null && g.name ? g.name : g;
-        if (mediaData.type === "album") return name;
+        // AJUSTE: Jogos e Álbuns não traduzem gêneros (mantêm o original do RAWG/Wikidata)
+        if (mediaData.type === "album" || mediaData.type === "jogo") return name;
         return translateGenre(name, safeLang);
       })
       .filter(Boolean);
@@ -202,22 +203,25 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
     if (genresList.length === 0 && mediaData.tags && Array.isArray(mediaData.tags)) {
       genresList = mediaData.tags.map((tag) => {
         const tagName = typeof tag === "object" && tag !== null && tag.name ? tag.name : tag;
-        if (mediaData.type === "album") return tagName;
+        if (mediaData.type === "album" || mediaData.type === "jogo") return tagName;
         return translateGenre(tagName, safeLang);
       });
+    }
+
+    // AJUSTE PLANO ÁLBUNS: Limita a 2 gêneros se for álbum
+    if (mediaData.type === "album") {
+      genresList = genresList.slice(0, 2);
     }
   }
 
   /**
-   * LÓGICA DE PAÍSES AJUSTADA:
-   * Agora o backend envia o objeto trilingue direto.
+   * LÓGICA DE PAÍSES:
+   * Suporta o novo objeto trilingue { PT, EN, ES } enviado pelo backend.
    */
   let countriesDisplay = null;
   if (mediaData.countries && typeof mediaData.countries === "object" && !Array.isArray(mediaData.countries)) {
-    // Se for o novo objeto trilingue { PT, EN, ES }
     countriesDisplay = mediaData.countries[safeLang] || mediaData.countries["EN"] || mediaData.countries["PT"];
   } else {
-    // Fallback para lógica antiga de array de ISO codes (caso ainda exista no banco)
     let countriesList = getLocalizedList(mediaData.countries);
     if (!countriesList && Array.isArray(mediaData.countries)) {
       countriesList = mediaData.countries;
@@ -237,7 +241,7 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
         countriesDisplay = countriesList.join(", ");
       }
     } else {
-      countriesDisplay = countriesList; // Se já for uma string
+      countriesDisplay = countriesList;
     }
   }
 
@@ -248,54 +252,39 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
   mediaData.credits?.crew?.find((c) => c.job === "Director")?.name ||
   null;
 
-  let directorLabel = "Direção";
-  if (mediaData.type === "livro") directorLabel = "Autor";
-  if (mediaData.type === "jogo") directorLabel = "Desenvolvedora";
-  if (mediaData.type === "album") directorLabel = "Artista";
+  /**
+   * TRADUÇÃO DE RÓTULOS (Ficha Técnica):
+   * Usa as chaves do seu hook useI18n.js para garantir que a categoria mude com o idioma.
+   */
+  const labelYear = t("details.year", "Ano");
+  const labelGenres = t("details.genre", "Gênero");
+  const labelCountry = t("details.country", "País");
+
+  let directorLabel = t("details.director", "Direção");
+  if (mediaData.type === "livro") directorLabel = t("details.author", "Autor");
+  if (mediaData.type === "jogo") directorLabel = t("details.developer", "Desenvolvedora");
+  if (mediaData.type === "album") directorLabel = t("details.artist", "Artista");
 
   /**
-   * MONTAGEM DA FICHA TÉCNICA:
-   * Removido o campo 'Duração' conforme solicitado.
+   * MONTAGEM DA FICHA TÉCNICA
+   * ORDEM: Artista/Diretor, Gênero, Ano, País.
    */
   let technicalDetails = {
-    Ano: displayYear,
-    Gêneros: genresDisplay,
     [directorLabel]: principalCredit,
-    País: countriesDisplay,
+    [labelGenres]: genresDisplay,
+    [labelYear]: displayYear,
+    [labelCountry]: countriesDisplay,
     ...(mediaData.details || {}),
   };
 
-  // Limpeza extra para garantir que runtime/duração não apareça vindo de 'details'
+  // Limpeza de campos que não devem aparecer na ficha técnica geral conforme plano
   if (technicalDetails.Duração) delete technicalDetails.Duração;
   if (technicalDetails.duration) delete technicalDetails.duration;
   if (technicalDetails.runtime) delete technicalDetails.runtime;
-
-  if (mediaData.type === "album") {
-    let trackCount = null;
-
-    const fromDetails = mediaData.details ? mediaData.details.Faixas : null;
-    if (typeof fromDetails === "number" && Number.isFinite(fromDetails)) {
-      trackCount = fromDetails;
-    } else if (typeof fromDetails === "string") {
-      const m = fromDetails.match(/\d+/);
-      if (m) {
-        const n = parseInt(m[0], 10);
-        if (Number.isFinite(n)) trackCount = n;
-      }
-    }
-
-    const tl = mediaData.details ? mediaData.details.Tracklist : null;
-    if ((trackCount == null || trackCount === 0) && Array.isArray(tl)) {
-      trackCount = tl.length;
-    }
-
-    if (trackCount != null) {
-      technicalDetails = {
-        ...technicalDetails,
-        Faixas: trackCount,
-      };
-    }
-  }
+  if (technicalDetails.Faixas) delete technicalDetails.Faixas;
+  if (technicalDetails.Tracklist) delete technicalDetails.Tracklist;
+  if (technicalDetails.BonusSections) delete technicalDetails.BonusSections;
+  if (technicalDetails.Artista) delete technicalDetails.Artista;
 
   const albumTracksRaw =
   mediaData.type === "album" ? (mediaData.details ? mediaData.details.Tracklist : null) : null;
@@ -348,11 +337,11 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
 
   if (mediaData.type === "livro") {
     technicalDetails = {
+      [directorLabel]: (mediaData.director || null) || t("details.not_informed", notInformedFallback),
+      [labelGenres]: (genresDisplay || null) || t("details.not_informed", notInformedFallback),
+      [labelYear]: (rawYear || null) || t("details.not_informed", notInformedFallback),
+      [labelCountry]: (countriesDisplay || null) || t("details.not_informed", notInformedFallback),
       ...(mediaData.details || {}),
-      author: (mediaData.director || null) || t("details.not_informed", notInformedFallback),
-      genres: (genresDisplay || null) || t("details.not_informed", notInformedFallback),
-      year: (rawYear || null) || t("details.not_informed", notInformedFallback),
-      country: (countriesDisplay || null) || t("details.not_informed", notInformedFallback),
     };
     if (technicalDetails.Duração) delete technicalDetails.Duração;
   }
