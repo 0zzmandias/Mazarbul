@@ -2,46 +2,55 @@ import prisma from '../lib/prisma.js';
 import { createHash } from 'crypto';
 import { searchEntities, getEntities, isQid } from '../utils/wikidata.adapter.js';
 
-// ==============================================================================
-// 1. CONFIGURAÇÕES
-// ==============================================================================
+/**
+ * MEDIA SEARCH SERVICE
+ * * Este serviço implementa a busca híbrida (Cache-Aside):
+ * 1. Procura no banco de dados local (MediaAlias/MediaReference).
+ * 2. Se não encontrar resultados suficientes, consulta a Wikidata.
+ * 3. Filtra ruídos e ordena os resultados (Filmes/Livros/Jogos/Álbuns).
+ */
 
-const WD_LANGS = ['pt-br', 'pt', 'en', 'es'];
+// ==============================================================================
+// 1. CONFIGURAÇÕES E DEFINIÇÕES
+// ==============================================================================
 
 const TYPE_DEFINITIONS = {
-    livro: [
-        'Q571', 'Q7725634', 'Q47461344', 'Q8261', 'Q277759', 'Q190192', 'Q334335'
-    ],
-    filme: [
-        'Q11424', 'Q229390', 'Q506240'
-    ],
-    jogo: [
-        'Q7889', 'Q115621596', 'Q7058673'
-    ],
-    album: [
-        'Q482994', 'Q208569'
-    ]
+    livro: ['Q571', 'Q7725634', 'Q47461344', 'Q8261', 'Q277759', 'Q190192', 'Q334335'],
+    filme: ['Q11424', 'Q229390', 'Q506240'],
+    jogo: ['Q7889', 'Q115621596', 'Q7058673'],
+    album: ['Q482994', 'Q208569']
 };
 
-const BLOCKLIST_TYPES = new Set([
-    'Q24856', 'Q196600', 'Q32906', 'Q5398426'
-]);
+const BLOCKLIST_TYPES = new Set(['Q24856', 'Q196600', 'Q32906', 'Q5398426']);
 
 const WD_CLAIMS = {
-    instanceOf: 'P31', subclassOf: 'P279', basedOn: 'P144',
-    publicationDate: 'P577', inception: 'P571', seriesOrdinal: 'P1545',
-        tmdbMovieId: 'P4947', rawgGameId: 'P9968', openLibraryId: 'P648',
-        hasPart: 'P527', partOf: 'P361'
+    instanceOf: 'P31',
+    subclassOf: 'P279',
+    publicationDate: 'P577',
+        inception: 'P571',
+        seriesOrdinal: 'P1545',
+        tmdbMovieId: 'P4947',
+        rawgGameId: 'P9968',
+        openLibraryId: 'P648',
+        hasPart: 'P527',
+        partOf: 'P361'
 };
 
 const TITLE_NOISE_REGEX = /\b(making of|bastidores|documentári|documentary|comemoração|celebration|concert|live in|entrevista|interview|tour|soundtrack|trilha sonora|anniversary|special|especial|de volta a|return to)\b/i;
 const BAD_TITLES = ['sem título', 'untitled', 'sem titulo', 'unnamed', 'episódio'];
 
 // ==============================================================================
-// 2. HELPERS
+// 2. HELPERS DE NORMALIZAÇÃO E LIMPEZA
 // ==============================================================================
 
-const normalizeTitle = (value) => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/['"`´’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const normalizeTitle = (value) =>
+String(value ?? '')
+.normalize('NFKD')
+.replace(/[\u0300-\u036f]/g, '')
+.toLowerCase()
+.replace(/['"`´’]/g, '')
+.replace(/[^a-z0-9]+/g, ' ')
+.trim();
 
 const cleanTitleForUi = (value) => {
     const s = String(value || '').replace(/_/g, ' ').trim();
@@ -51,9 +60,12 @@ const cleanTitleForUi = (value) => {
 };
 
 // ==============================================================================
-// 3. CACHE E BANCO DE DADOS
+// 3. PERSISTÊNCIA E CACHE (BANCO DE DADOS)
 // ==============================================================================
 
+/**
+ * Busca IDs de mídias conhecidas no banco local através de apelidos (aliases).
+ */
 const dbFetchAliasPool = async ({ queryNormalized, pool = 100 }) => {
     try {
         const matches = await prisma.mediaAlias.findMany({
@@ -66,30 +78,52 @@ const dbFetchAliasPool = async ({ queryNormalized, pool = 100 }) => {
     } catch { return []; }
 };
 
+/**
+ * Busca os objetos completos de mídia do banco para exibir na busca.
+ * Ajustado para incluir o posterUrl conforme o plano.
+ */
 const fetchFromDb = async (ids, uiLang) => {
     try {
-        const refs = await prisma.mediaReference.findMany({ where: { id: { in: ids } } });
+        const refs = await prisma.mediaReference.findMany({
+            where: { id: { in: ids } }
+        });
         return refs.map(ref => ({
-            id: ref.id, type: ref.type,
-            title: ref.titles?.[uiLang] || ref.titles?.PT || ref.titles?.EN,
+            id: ref.id,
+            type: ref.type,
+            title: ref.titles?.[uiLang] || ref.titles?.PT || ref.titles?.EN || ref.titles?.DEFAULT,
             year: ref.releaseYear,
+            posterUrl: ref.posterUrl, // Agora traz o poster se já existir no banco
             ordinal: ref.details?.technical?.seriesOrdinal,
-            tmdb: ref.externalIds?.tmdb, score: 100
+            tmdb: ref.externalIds?.tmdb,
+            score: 100 // Resultados do banco têm prioridade máxima
         }));
     } catch { return []; }
 };
 
+/**
+ * Salva resultados da Wikidata como "stubs" (rascunhos) para buscas futuras.
+ */
 const saveToDbBackground = (items) => {
     setTimeout(async () => {
         for (const item of items) {
             try {
                 if (!item.rawEntity) continue;
                 const tech = { qid: item.id, type: item.type, year: item.year, seriesOrdinal: item.ordinal };
-                const titles = { PT: item.title, EN: item.title };
+                const titles = { PT: item.title, EN: item.title, DEFAULT: item.title };
 
                 await prisma.mediaReference.upsert({
                     where: { id: item.id },
-                    create: { id: item.id, type: item.type, titles, releaseYear: item.year, externalIds: { tmdb: item.tmdb }, details: { technical: tech }, isStub: true, synopses: {}, tags: [] },
+                    create: {
+                        id: item.id,
+                        type: item.type,
+                        titles,
+                        releaseYear: item.year,
+                        externalIds: { tmdb: item.tmdb },
+                        details: { technical: tech },
+                        isStub: true, // Marcado como stub até ser hidratado (clicado)
+                synopses: {},
+                tags: []
+                    },
                     update: { lastAccessedAt: new Date() }
                 });
 
@@ -97,8 +131,17 @@ const saveToDbBackground = (items) => {
                 const hash = createHash('sha1').update(seed).digest('hex');
                 await prisma.mediaAlias.upsert({
                     where: { id: `ma_${hash}` },
-                    create: { id: `ma_${hash}`, canonicalId: item.id, type: item.type, lang: 'PT', title: item.title, titleNormalized: normalizeTitle(item.title), source: 'wikidata', lastAccessedAt: new Date() },
-                                               update: { lastAccessedAt: new Date() }
+                    create: {
+                        id: `ma_${hash}`,
+                        canonicalId: item.id,
+                        type: item.type,
+                        lang: 'PT',
+                        title: item.title,
+                        titleNormalized: normalizeTitle(item.title),
+                                               source: 'wikidata',
+                                               lastAccessedAt: new Date()
+                    },
+                    update: { lastAccessedAt: new Date() }
                 });
             } catch (e) {}
         }
@@ -106,23 +149,8 @@ const saveToDbBackground = (items) => {
 };
 
 // ==============================================================================
-// 4. LÓGICA DE ORDENAÇÃO REFINADA
+// 4. LÓGICA DE ORDENAÇÃO (FILMES E LIVROS)
 // ==============================================================================
-
-const sortBooks = (a, b) => {
-    // 1. Ordinal
-    if (a.ordinal && b.ordinal) return a.ordinal - b.ordinal;
-
-    // 2. Apêndices (Sempre no fim absoluto da lista de livros)
-    const isAppA = a.title.toLowerCase().includes('apêndices') || a.title.toLowerCase().includes('appendices');
-    const isAppB = b.title.toLowerCase().includes('apêndices') || b.title.toLowerCase().includes('appendices');
-
-    if (isAppA && !isAppB) return 1;  // A vai pro fundo
-    if (!isAppA && isAppB) return -1; // B vai pro fundo
-
-    // 3. Cronologia Padrão
-    return (a.year || 9999) - (b.year || 9999);
-};
 
 const sortMovies = (a, b) => {
     if (a.ordinal && b.ordinal) return a.ordinal - b.ordinal;
@@ -131,32 +159,27 @@ const sortMovies = (a, b) => {
     const yearB = b.year || 0;
     const diff = Math.abs(yearA - yearB);
 
-    // Simplificação de título para detecção de Reboot
-    // Se os títulos normalizados forem IGUAIS (ex: "duna" vs "duna") e o gap for grande,
-    // assumimos que é um remake/reboot e queremos o mais novo primeiro.
     const titleA = normalizeTitle(a.title);
     const titleB = normalizeTitle(b.title);
 
-    // Duna (1984) vs Duna (2021) -> Iguais -> Novo Primeiro
-    // Senhor dos Anéis (2001) vs Guerra dos Rohirrim (2024) -> Diferentes -> Antigo Primeiro
+    // Se forem remakes (mesmo nome, longo intervalo), mostra o mais novo primeiro
     if (titleA === titleB && diff > 10) {
-        return yearB - yearA; // Descendente (Novo -> Antigo)
+        return yearB - yearA;
     }
 
-    // Padrão Sequencial (LOTR, Harry Potter)
-    return yearA - yearB; // Ascendente (Antigo -> Novo)
+    // Cronologia padrão (LOTR, Star Wars etc)
+    return yearA - yearB;
 };
 
 const sortRecent = (a, b) => (b.year || 0) - (a.year || 0);
 
 const dynamicSort = (buckets) => {
-    // Ordena internamente
-    buckets.livro.sort(sortBooks);
     buckets.filme.sort(sortMovies);
+    buckets.livro.sort((a,b) => (a.ordinal && b.ordinal) ? a.ordinal - b.ordinal : (a.year || 0) - (b.year || 0));
     buckets.jogo.sort(sortRecent);
     buckets.album.sort(sortRecent);
 
-    // Regra dos 4 Anos (Livro vs Filme)
+    // Prioridade visual: Livros antes de filmes se houver um gap histórico (Regra dos 4 anos)
     const startBook = buckets.livro[0]?.year || 9999;
     const startMovie = buckets.filme[0]?.year || 9999;
 
@@ -171,26 +194,12 @@ const dynamicSort = (buckets) => {
 };
 
 // ==============================================================================
-// 5. EXTRAÇÃO
+// 5. EXTRAÇÃO E INFERÊNCIA (WIKIDATA)
 // ==============================================================================
-
-const safeSearch = async (query, lang) => {
-    try {
-        const res = await searchEntities({ query, language: lang, limit: 40 });
-        if (res && (Array.isArray(res) || Array.isArray(res.search))) return res;
-        return await searchEntities(query, lang, 40);
-    } catch (e) { return []; }
-};
-
-const normalizeSearchResults = (res) => {
-    if (!res) return [];
-    if (Array.isArray(res)) return res;
-    if (Array.isArray(res.search)) return res.search;
-    return [];
-};
 
 const getClaimIds = (e, p) => (e.claims?.[p] || []).map(c => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
 const getClaimString = (e, p) => e.claims?.[p]?.[0]?.mainsnak?.datavalue?.value || null;
+
 const getYear = (e) => {
     const time = e.claims?.[WD_CLAIMS.publicationDate]?.[0]?.mainsnak?.datavalue?.value?.time
     || e.claims?.[WD_CLAIMS.inception]?.[0]?.mainsnak?.datavalue?.value?.time;
@@ -214,63 +223,45 @@ const inferType = (entity) => {
 };
 
 const getDisplayTitle = (e, uiLang) => {
-    const t = uiLang.toLowerCase().startsWith('pt') ? ['pt-br', 'pt', 'en', 'es'] : ['en', 'pt-br', 'es'];
-    for (const l of t) if (e.labels?.[l]?.value) return cleanTitleForUi(e.labels[l].value);
+    const langs = uiLang.toLowerCase().startsWith('pt') ? ['pt-br', 'pt', 'en', 'es'] : ['en', 'pt-br', 'es'];
+    for (const l of langs) if (e.labels?.[l]?.value) return cleanTitleForUi(e.labels[l].value);
     return cleanTitleForUi(e.labels?.en?.value || 'Sem Título');
 };
 
 // ==============================================================================
-// 6. FUNÇÃO PRINCIPAL
+// 6. FUNÇÃO PRINCIPAL: BUSCA UNIFICADA
 // ==============================================================================
 
-export const searchUnifiedMedia = async ({ query, uiLang = 'PT', limit = 25 }) => {
+export const searchUnifiedMedia = async ({ query, uiLang = 'PT', limit = 25, type = null }) => {
     const qRaw = String(query || '').trim();
     if (qRaw.length < 2) return [];
     const qNorm = normalizeTitle(qRaw);
 
-    // --- 1. CACHE DB ---
+    // --- 1. CONSULTA AO BANCO (CACHE) ---
     const localIds = await dbFetchAliasPool({ queryNormalized: qNorm, pool: 50 });
     let items = [];
     let usedApi = false;
 
-    if (localIds.length >= 4) {
+    // Se já temos bastantes resultados no banco, usamos eles (suprindo a base)
+    if (localIds.length >= 5) {
         items = await fetchFromDb(localIds, uiLang);
     } else {
-        // --- 2. API ---
+        // --- 2. CONSULTA EXTERNA (WIKIDATA) ---
         usedApi = true;
         const wdLang = uiLang.toLowerCase().startsWith('pt') ? 'pt-br' : 'en';
 
-        let rawResults = normalizeSearchResults(await safeSearch(qRaw, wdLang));
-        if (rawResults.length === 0 && wdLang !== 'en') {
-            const fallback = normalizeSearchResults(await safeSearch(qRaw, 'en'));
-            rawResults = [...fallback];
-        }
+        // Busca entidades na Wikidata
+        let rawResults = [];
+        try {
+            const res = await searchEntities({ query: qRaw, language: wdLang, limit: 40 });
+            rawResults = Array.isArray(res) ? res : (res.search || []);
+        } catch (e) { rawResults = []; }
 
-        let qidsToFetch = Array.from(new Set(rawResults.map(r => r.id || r.qid).filter(isQid))).slice(0, 60);
+        const qidsToFetch = Array.from(new Set(rawResults.map(r => r.id || r.qid))).filter(isQid).slice(0, 50);
 
         if (qidsToFetch.length > 0) {
-            const details1 = await getEntities({ qids: qidsToFetch, languages: ['pt-br', 'en', 'es'], props: ['labels', 'claims'] });
-            let entities = details1.entities || details1 || {};
-
-            const partsToFetch = new Set();
-            const parentIds = new Set();
-            for (const qid of qidsToFetch) {
-                const ent = entities[qid];
-                if (!ent) continue;
-                const parts = getClaimIds(ent, WD_CLAIMS.hasPart);
-                if (parts.length > 0) {
-                    parentIds.add(qid);
-                    parts.slice(0, 15).forEach(p => partsToFetch.add(p));
-                }
-            }
-            if (partsToFetch.size > 0) {
-                const newIds = Array.from(partsToFetch).filter(id => !entities[id]);
-                if (newIds.length > 0) {
-                    const detailsParts = await getEntities({ qids: newIds, languages: ['pt-br', 'en', 'es'], props: ['labels', 'claims'] });
-                    entities = { ...entities, ...(detailsParts.entities || detailsParts || {}) };
-                    qidsToFetch = [...qidsToFetch, ...newIds];
-                }
-            }
+            const details = await getEntities({ qids: qidsToFetch, languages: ['pt-br', 'en', 'es'], props: ['labels', 'claims'] });
+            const entities = details.entities || details || {};
 
             const currentYear = new Date().getFullYear();
 
@@ -278,43 +269,42 @@ export const searchUnifiedMedia = async ({ query, uiLang = 'PT', limit = 25 }) =
                 const ent = entities[qid];
                 if (!ent) continue;
 
-                const type = inferType(ent);
-                if (!type || type === 'outros') continue;
+                const mediaType = inferType(ent);
+                if (!mediaType || mediaType === 'outros') continue;
+                if (type && type !== 'all' && mediaType !== type) continue;
 
                 const year = getYear(ent);
                 const title = getDisplayTitle(ent, uiLang);
 
-                // --- FILTROS RÍGIDOS ---
-                // Remove Pai se for livro
-                if (parentIds.has(qid) && type === 'livro') continue;
-                // Remove Títulos Ruins
+                // Filtros de qualidade
                 if (BAD_TITLES.some(bad => title.toLowerCase().includes(bad))) continue;
                 if (TITLE_NOISE_REGEX.test(title)) continue;
-                // Remove Futuro
-                if (year && year >= 2026) continue;
+                if (year && year > currentYear + 1) continue; // Remove lançamentos muito futuros
+                if ((mediaType === 'filme' || mediaType === 'livro') && !year) continue;
 
-                // Remove SEM ANO para Livros e Filmes (Limpa Dunal, Macedonski e Nárnia lixo)
-                if ((type === 'filme' || type === 'livro') && !year) continue;
-
-                // Remove Lixo Antigo
-                if (year && year < 1900 && type !== 'livro') continue;
-
-                // Remove Filmes sem TMDB se forem recentes (especulação)
                 const tmdb = getClaimString(ent, WD_CLAIMS.tmdbMovieId);
-                if (type === 'filme' && year >= currentYear && !tmdb) continue;
-
                 const ordinal = parseFloat(getClaimString(ent, WD_CLAIMS.seriesOrdinal)) || null;
-                const score = normalizeTitle(title) === qNorm ? 100 : 50;
 
-                items.push({ id: qid, type, title, year, ordinal, score, tmdb, rawEntity: ent });
+                items.push({
+                    id: qid,
+                    type: mediaType,
+                    title,
+                    year,
+                    ordinal,
+                    tmdb,
+                    posterUrl: null, // Wikidata não tem poster, será hidratado depois
+                    rawEntity: ent
+                });
             }
         }
     }
 
+    // --- 3. DEDUPLICAÇÃO E ORGANIZAÇÃO ---
     const seenMap = new Map();
     items.forEach(item => {
         const key = `${item.type}|${item.year}|${normalizeTitle(item.title)}`;
         const existing = seenMap.get(key);
+        // Prioriza o que tem ID externo (TMDB) ou o que já está no banco
         if (!existing || (!existing.tmdb && item.tmdb)) seenMap.set(key, item);
     });
 
@@ -323,12 +313,17 @@ export const searchUnifiedMedia = async ({ query, uiLang = 'PT', limit = 25 }) =
             if (buckets[item.type]) buckets[item.type].push(item);
         });
 
-            // Ordenação e Montagem Dinâmica
             const finalSorted = dynamicSort(buckets);
 
+            // Se usamos a API, salvamos os stubs para a próxima busca vir do banco
             if (usedApi) saveToDbBackground(finalSorted);
 
+            // Retorno para o Frontend
             return finalSorted.slice(0, limit).map(i => ({
-                id: i.id, type: i.type, title: i.title, year: i.year, poster: null
+                id: i.id,
+                type: i.type,
+                title: i.title,
+                year: i.year,
+                poster: i.posterUrl // Retorna o poster se o banco já o tiver!
             }));
 };

@@ -208,31 +208,40 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
     }
   }
 
-  let countriesList = getLocalizedList(mediaData.countries);
-  if (!countriesList && Array.isArray(mediaData.countries)) {
-    countriesList = mediaData.countries;
-  }
+  /**
+   * LÓGICA DE PAÍSES AJUSTADA:
+   * Agora o backend envia o objeto trilingue direto.
+   */
+  let countriesDisplay = null;
+  if (mediaData.countries && typeof mediaData.countries === "object" && !Array.isArray(mediaData.countries)) {
+    // Se for o novo objeto trilingue { PT, EN, ES }
+    countriesDisplay = mediaData.countries[safeLang] || mediaData.countries["EN"] || mediaData.countries["PT"];
+  } else {
+    // Fallback para lógica antiga de array de ISO codes (caso ainda exista no banco)
+    let countriesList = getLocalizedList(mediaData.countries);
+    if (!countriesList && Array.isArray(mediaData.countries)) {
+      countriesList = mediaData.countries;
+    }
 
-  let translatedCountries = null;
-  if (countriesList && Array.isArray(countriesList)) {
-    try {
-      const regionNames = new Intl.DisplayNames([lang || "pt"], { type: "region" });
-      translatedCountries = countriesList.map((code) => {
-        try {
-          return code.length === 2 ? regionNames.of(code) : code;
-        } catch (e) {
-          return code;
-        }
-      });
-    } catch (e) {
-      translatedCountries = countriesList;
+    if (Array.isArray(countriesList)) {
+      try {
+        const regionNames = new Intl.DisplayNames([lang || "pt"], { type: "region" });
+        countriesDisplay = countriesList.map((code) => {
+          try {
+            return code.length === 2 ? regionNames.of(code) : code;
+          } catch (e) {
+            return code;
+          }
+        }).join(", ");
+      } catch (e) {
+        countriesDisplay = countriesList.join(", ");
+      }
+    } else {
+      countriesDisplay = countriesList; // Se já for uma string
     }
   }
 
   const genresDisplay = Array.isArray(genresList) ? genresList.join(", ") : genresList;
-  const countriesDisplay = Array.isArray(translatedCountries)
-  ? translatedCountries.join(", ")
-  : translatedCountries;
 
   const principalCredit =
   mediaData.director ||
@@ -244,15 +253,22 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
   if (mediaData.type === "jogo") directorLabel = "Desenvolvedora";
   if (mediaData.type === "album") directorLabel = "Artista";
 
+  /**
+   * MONTAGEM DA FICHA TÉCNICA:
+   * Removido o campo 'Duração' conforme solicitado.
+   */
   let technicalDetails = {
     Ano: displayYear,
-    Duração: mediaData.runtime ? `${mediaData.runtime} min` : null,
     Gêneros: genresDisplay,
-    [directorLabel]:
-    mediaData.director || mediaData.credits?.crew?.find((c) => c.job === "Director")?.name || null,
+    [directorLabel]: principalCredit,
     País: countriesDisplay,
     ...(mediaData.details || {}),
   };
+
+  // Limpeza extra para garantir que runtime/duração não apareça vindo de 'details'
+  if (technicalDetails.Duração) delete technicalDetails.Duração;
+  if (technicalDetails.duration) delete technicalDetails.duration;
+  if (technicalDetails.runtime) delete technicalDetails.runtime;
 
   if (mediaData.type === "album") {
     let trackCount = null;
@@ -338,9 +354,9 @@ export default function MediaDetailsPage({ theme, setTheme, lang, setLang, t }) 
       year: (rawYear || null) || t("details.not_informed", notInformedFallback),
       country: (countriesDisplay || null) || t("details.not_informed", notInformedFallback),
     };
+    if (technicalDetails.Duração) delete technicalDetails.Duração;
   }
 
-  // Busca review existente do usuário logado nesta mídia
   const userReview = (mediaData.communityReviews || mediaData.reviews || []).find(
     (r) => r.userId === currentUser?.id
   );

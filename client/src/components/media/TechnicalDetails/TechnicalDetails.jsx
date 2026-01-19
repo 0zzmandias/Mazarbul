@@ -1,20 +1,32 @@
 import React from "react";
 
-// Componente para exibir a "Ficha Técnica" de uma mídia.
+/**
+ * TECHNICAL DETAILS COMPONENT
+ * Exibe a "Ficha Técnica" da mídia.
+ * REGRAS DO PLANO:
+ * - País: Exibe o valor traduzido vindo do objeto trilingue do backend.
+ * - Duração: Campo removido conforme solicitação.
+ * - Gêneros: Exibe os gêneros limpos e reduzidos.
+ */
 export default function TechnicalDetails({ details, type, t, lang }) {
   if (!details) {
     return null;
   }
 
+  // Normaliza o código do idioma para bater com as chaves do banco (PT, EN, ES)
   const safeLang = (lang || "PT").split("-")[0].toUpperCase();
 
+  // Labels específicas para música
   const albumArtistLabel =
   safeLang === "EN" ? "Artist" : safeLang === "ES" ? "Artista" : "Artista";
 
   const albumTracksLabel =
   safeLang === "EN" ? "Tracks" : safeLang === "ES" ? "Pistas" : "Faixas";
 
-  // Helper: pega o primeiro valor existente dentre várias chaves possíveis
+  /**
+   * Helper: Busca o primeiro valor existente dentre as chaves fornecidas.
+   * Útil para manter compatibilidade entre nomes de chaves do banco e stubs.
+   */
   const getValue = (keys) => {
     for (const k of keys) {
       if (k == null) continue;
@@ -23,33 +35,39 @@ export default function TechnicalDetails({ details, type, t, lang }) {
     return null;
   };
 
-  // Função para renderizar um par de chave-valor da ficha técnica
+  /**
+   * Renderiza uma linha da ficha técnica (Label: Valor)
+   */
   const renderDetailItem = (labelKey, value) => {
     // Se o valor não existir, não renderiza a linha
-    if (value == null || value === "") {
+    if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) {
       return null;
     }
 
     let displayValue = value;
 
-    // Lida com arrays de tags (Gênero, Plataformas)
+    // Lida com arrays (Gêneros, Tags)
     if (Array.isArray(value)) {
       displayValue = value
       .map((item) => {
-        // Verifica se é uma string estilo "tag.action" para traduzir, ou texto puro
-        if (item && item.includes && item.includes("tag.")) return t(item);
+        // Se for uma string de tradução (tag.xyz), usa a função t()
+        if (typeof item === "string" && item.includes("tag.")) return t(item);
         return item;
       })
       .filter(Boolean)
       .join(", ");
-    } else if (
-      // Lida com objetos localizados (ex.: { PT: "EUA", EN: "USA" })
+    }
+    // Lida com objetos localizados (Países: { PT: "Brasil", EN: "Brazil" })
+    else if (
       typeof value === "object" &&
       value !== null &&
-      value[safeLang]
+      !Array.isArray(value)
     ) {
-      displayValue = value[safeLang];
+      displayValue = value[safeLang] || value["DEFAULT"] || value["EN"] || value["PT"] || "";
     }
+
+    // Se após o processamento o valor estiver vazio, não renderiza
+    if (!displayValue) return null;
 
     return (
       <div
@@ -57,7 +75,6 @@ export default function TechnicalDetails({ details, type, t, lang }) {
       className="flex justify-between border-b border-neutral-200 dark:border-neutral-800 py-3"
       >
       <dt className="text-sm text-neutral-500 dark:text-neutral-400">
-      {/* Se a chave tiver ponto (ex: details.year), tenta traduzir. Se for texto puro, exibe direto */}
       {labelKey.includes(".") ? t(labelKey) : labelKey}
       </dt>
       <dd className="text-sm font-medium text-neutral-800 dark:text-neutral-200 text-right">
@@ -68,12 +85,12 @@ export default function TechnicalDetails({ details, type, t, lang }) {
   };
 
   return (
-    <div>
-    <h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-2">
+    <div className="mt-8">
+    <h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-4">
     {t("section.techDetails") || "Ficha Técnica"}
     </h2>
 
-    <dl>
+    <dl className="flex flex-col">
     {/* --- DETALHES PARA FILMES --- */}
     {type === "filme" && (
       <>
@@ -81,27 +98,25 @@ export default function TechnicalDetails({ details, type, t, lang }) {
         "details.director",
         getValue(["Direção", "Diretor", "director"])
       )}
-      {renderDetailItem("details.duration", getValue(["Duração", "duration"]))}
       {renderDetailItem(
         "details.genre",
         getValue(["Gêneros", "Gênero", "genres"])
       )}
       {renderDetailItem("details.year", getValue(["Ano", "year"]))}
-      {renderDetailItem("details.country", getValue(["País", "country"]))}
+      {renderDetailItem("details.country", getValue(["País", "country", "countries"]))}
       </>
     )}
 
     {/* --- DETALHES PARA LIVROS --- */}
     {type === "livro" && (
       <>
-      {/* Apenas as categorias decididas: Autor, Gênero, Ano, País */}
       {renderDetailItem("details.author", getValue(["author", "Autor"]))}
       {renderDetailItem(
         "details.genre",
         getValue(["genres", "Gêneros", "Gênero"])
       )}
       {renderDetailItem("details.year", getValue(["year", "Ano"]))}
-      {renderDetailItem("details.country", getValue(["country", "País"]))}
+      {renderDetailItem("details.country", getValue(["country", "País", "countries"]))}
       </>
     )}
 
@@ -111,13 +126,12 @@ export default function TechnicalDetails({ details, type, t, lang }) {
       {renderDetailItem("Desenvolvedora", getValue(["Desenvolvedora"]))}
       {renderDetailItem("Plataformas", getValue(["Plataformas"]))}
       {renderDetailItem("Metacritic", getValue(["Metacritic"]))}
-
-      {renderDetailItem("details.duration", getValue(["Duração", "duration"]))}
       {renderDetailItem(
         "details.genre",
         getValue(["Gêneros", "Gênero", "genres"])
       )}
       {renderDetailItem("details.year", getValue(["Ano", "year"]))}
+      {renderDetailItem("details.country", getValue(["country", "País", "countries"]))}
       </>
     )}
 
@@ -126,12 +140,12 @@ export default function TechnicalDetails({ details, type, t, lang }) {
       <>
       {renderDetailItem(albumArtistLabel, getValue(["Artista"]))}
       {renderDetailItem(albumTracksLabel, getValue(["Faixas"]))}
-
       {renderDetailItem(
         "details.genre",
         getValue(["Gêneros", "Gênero", "genres"])
       )}
       {renderDetailItem("details.year", getValue(["Ano", "year"]))}
+      {renderDetailItem("details.country", getValue(["country", "País", "countries"]))}
       </>
     )}
     </dl>
