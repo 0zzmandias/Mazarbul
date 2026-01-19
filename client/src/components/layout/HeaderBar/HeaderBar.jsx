@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sun, Moon, User, Settings, Search as SearchIcon, Loader2 } from "lucide-react";
+import { Sun, Moon, User, Settings, Search as SearchIcon, Loader2, LogOut } from "lucide-react";
 
 import api from "../../../services/api";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -12,7 +12,8 @@ function HeaderBar({ theme, setTheme, lang, setLang, t }) {
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { currentUser } = useAuth();
+  // CORREÇÃO: O nome da função no seu Context é signOut, não logout
+  const { currentUser, signOut } = useAuth();
 
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
@@ -112,6 +113,12 @@ function HeaderBar({ theme, setTheme, lang, setLang, t }) {
     setQuery("");
   }
 
+  // Função de Logout Corrigida
+  function handleLogout() {
+    // signOut vem do AuthContext e já faz o window.location.href = '/login'
+    signOut();
+  }
+
   const safeT = (key, fallback) => {
     if (typeof t === "function") {
       const translated = t(key);
@@ -196,6 +203,16 @@ function HeaderBar({ theme, setTheme, lang, setLang, t }) {
       >
       <User className="w-5 h-5" />
       </Link>
+
+      {/* Botão de Logout Corrigido */}
+      <button
+      onClick={handleLogout}
+      className="h-9 w-9 inline-flex items-center justify-center rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 hover:text-red-600 transition-colors"
+      title={safeT("auth.logout", "Sair")}
+      >
+      <LogOut className="w-5 h-5" />
+      </button>
+
       </div>
       </div>
     ) : (
