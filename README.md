@@ -294,11 +294,11 @@ Observação
 
 ## Screenshots das principais telas funcionando 
 
-![Tela 1](docs/screenshots/01.png)
-![Tela 2](docs/screenshots/02.png)
-![Tela 3](docs/screenshots/03.png)
-![Tela 4](docs/screenshots/04.png)
-![Tela 5](docs/screenshots/05.png)
+![Screenshot 01](docs/screenshots/Screenshot%202026-01-19%20at%2016-11-48%20Mazarbul.png)
+![Screenshot 02](docs/screenshots/Screenshot%202026-01-19%20at%2019-19-42%20Mazarbul.png)
+![Screenshot 03](docs/screenshots/Screenshot%202026-01-19%20at%2019-20-17%20Mazarbul.png)
+![Screenshot 04](docs/screenshots/Screenshot%202026-01-19%20at%2019-20-23%20Mazarbul.png)
+![Screenshot 05](docs/screenshots/Screenshot%202026-01-19%20at%2019-20-38%20Mazarbul.png)
 
 ## Dificuldades encontradas e como foram resolvidas
 
