@@ -1,10 +1,20 @@
 # Mazarbul
 
-Mazarbul é uma aplicação web para registro, avaliação e organização de consumo cultural. O sistema permite catalogar e publicar avaliações de filmes, livros, jogos e álbuns, com foco em busca unificada e páginas canônicas de mídia.
+Helton Alves Sá  - 2019014022
 
-Helton Alves Sá - 2019014022
+## Descrição detalhada do projeto
 
-## Tecnologias utilizadas (versões específicas)
+Mazarbul é uma aplicação web para registro, avaliação e organização de consumo cultural. O sistema suporta quatro tipos de mídia (filmes, jogos, livros e álbuns) e oferece busca unificada, páginas de detalhes e publicação de reviews. Um objetivo central do projeto é garantir uma única página canônica por obra, reduzindo duplicatas e inconsistências causadas por ruído e variações em fontes externas.
+
+Principais entregas do domínio:
+- Catálogo unificado por tipo de mídia (filme, jogo, livro, álbum)
+- Página de detalhes por mídia (com ficha técnica e metadados)
+- Reviews por usuário (nota, texto, tags e spoilers)
+- Perfil público/privado com agregações e tags por gênero
+- Sistema de clubes com tópicos e respostas (discussões)
+- Troféus/conquistas vinculados à atividade do usuário
+
+## Tecnologias utilizadas (com versões)
 
 Frontend (client)
 - React 18.3.1
@@ -19,7 +29,7 @@ Frontend (client)
 - Autoprefixer 10.4.21
 
 Backend (server)
-- Node.js 20.19.0+ (ou Node.js 22.12.0+) 
+- Node.js (runtime; recomendado 20+)
 - Express 4.22.1
 - Prisma 5.22.0
 - @prisma/client 5.22.0
@@ -33,13 +43,16 @@ Backend (server)
 Banco de dados
 - PostgreSQL (datasource provider = postgresql no Prisma)
 
-## Pré-requisitos para executar o projeto
+## Pré-requisitos detalhados
 
+Obrigatórios
 - Git
-- Node.js 20.19.0+ (ou Node.js 22.12.0+)
-- npm (incluído com Node)
+- Node.js 20+ e npm
 - PostgreSQL em execução e uma database criada
-- Opcional (para hidratação completa de metadados): chaves de API para TMDB, RAWG e Last.fm
+
+Opcionais (para enriquecer metadados na hidratação)
+- Chaves de API (TMDB, RAWG, Last.fm, Google Books)
+- User-Agent para MusicBrainz
 
 ## Instruções de instalação passo a passo
 
@@ -50,304 +63,365 @@ git clone https://github.com/0zzmandias/Mazarbul.git
 cd Mazarbul
 ```
 
-2) Configurar o backend
+2) Instalar dependências do backend
 
 ```bash
 cd server
 npm install
 ```
 
-Crie um arquivo server/.env com as variáveis necessárias (exemplos abaixo). Ajuste usuário, senha, host, porta e nome da base.
-
-```bash
-# obrigatória
-DATABASE_URL="postgresql://USUARIO:SENHA@localhost:5432/mazarbul?schema=public"
-
-# opcional (se não definir, o backend usa um valor padrão)
-JWT_SECRET="defina-uma-chave-forte-aqui"
-
-# opcionais, mas recomendadas para enriquecer dados na hidratação
-TMDB_API_KEY="sua-chave-tmdb"
-RAWG_API_KEY="sua-chave-rawg"
-LASTFM_API_KEY="sua-chave-lastfm"
-
-# opcionais
-GOOGLE_BOOKS_API_KEY="sua-chave-google-books"
-MUSICBRAINZ_USER_AGENT="Mazarbul/1.0.0 (https://github.com/0zzmandias/Mazarbul)"
-
-# opcional
-PORT=3000
-```
-
-Aplicar migrations e gerar o Prisma Client
-
-```bash
-npx prisma generate
-npx prisma migrate dev
-```
-
-Opcional: popular o banco com dados de seed
-
-```bash
-npx prisma db seed
-```
-
-3) Configurar o frontend
+3) Instalar dependências do frontend
 
 ```bash
 cd ../client
 npm install
 ```
 
-## Instruções de execução (como rodar o servidor)
+## Instruções de configuração (variáveis de ambiente, banco de dados)
 
-1) Em um terminal, iniciar o backend
+1) Configurar o banco e o Prisma
+
+No diretório server, crie um arquivo server/.env e configure o DATABASE_URL. Exemplo:
+
+```bash
+DATABASE_URL="postgresql://USUARIO:SENHA@localhost:5432/mazarbul?schema=public"
+JWT_SECRET="defina-uma-chave-forte-aqui"
+PORT=3000
+
+TMDB_API_KEY="sua-chave-tmdb"
+RAWG_API_KEY="sua-chave-rawg"
+LASTFM_API_KEY="sua-chave-lastfm"
+GOOGLE_BOOKS_API_KEY="sua-chave-google-books"
+MUSICBRAINZ_USER_AGENT="Mazarbul/1.0.0 (https://github.com/0zzmandias/Mazarbul)"
+```
+
+Notas:
+- DATABASE_URL é obrigatório.
+- As chaves de API são opcionais. Sem elas o sistema ainda roda, mas com metadados menos completos.
+
+2) Aplicar migrations e gerar o Prisma Client
+
+```bash
+cd server
+npx prisma generate
+npx prisma migrate dev
+```
+
+3) Opcional: popular banco com seed
+
+```bash
+npx prisma db seed
+```
+
+## Instruções de execução
+
+1) Iniciar o backend
 
 ```bash
 cd server
 npm run dev
 ```
 
-2) Em outro terminal, iniciar o frontend
+2) Iniciar o frontend (em outro terminal)
 
 ```bash
 cd client
 npm run dev
 ```
 
-3) Acessar no navegador
-
+3) Acessos
 - Frontend: http://localhost:5173
-- Backend (base): http://localhost:3000
+- Backend: http://localhost:3000
 
-## Estrutura do projeto (descrição das pastas principais)
+## Estrutura do projeto detalhada
 
-Visão geral do monorepo
+Visão geral
 
 ```text
 .
 ├── client
-│   └── src
-│       ├── components   Componentes reutilizáveis de UI
-│       ├── pages        Páginas (rotas) do React Router
-│       ├── contexts     Contextos (Auth, UserDatabase)
-│       ├── hooks        Hooks (ex: useUserProfileData)
-│       ├── services     Clientes HTTP e serviços para API
-│       └── utils        Helpers e formatadores
+│   ├── src
+│   │   ├── components   Componentes reutilizáveis (UI, media, club, dashboard)
+│   │   ├── pages        Páginas principais (rotas do React Router)
+│   │   ├── contexts     Contextos (AuthContext, UserDatabaseContext)
+│   │   ├── hooks        Hooks (ex: useUserProfileData)
+│   │   ├── services     Cliente HTTP e serviços para API
+│   │   ├── constants    Dicionários (ex: gêneros)
+│   │   └── utils        Helpers e formatadores
+│   └── vite.config.js
 └── server
-    ├── prisma           Schema, migrations e seed
+    ├── prisma
+    │   ├── schema.prisma  Modelo de dados
+    │   ├── migrations     Histórico de migrations
+    │   └── seed.js        Dados iniciais
     └── src
-        ├── routes       Definição das rotas HTTP
-        ├── controllers  Camada HTTP (req/res)
-        ├── services     Regras de negócio (auth, reviews, busca, hidratação)
-        ├── utils        Adaptadores para APIs externas (Wikidata, TMDB, RAWG, etc)
-        ├── middlewares  Autenticação por JWT
-        └── lib          Instância do Prisma
+        ├── server.js      Entrypoint do Express
+        ├── routes         Rotas HTTP
+        ├── controllers    Camada HTTP (req/res)
+        ├── services       Regras de negócio (auth, reviews, busca, hidratação)
+        ├── utils          Adaptadores (Wikidata, TMDB, RAWG, livros, música)
+        ├── middlewares    Autenticação por JWT
+        └── lib            Prisma (instância compartilhada)
 ```
 
-## Funcionalidades implementadas (lista das funcionalidades entregues)
+## Funcionalidades implementadas (lista completa)
 
-Backend (server)
+Backend
 - Autenticação
-  - Registro e login com hash de senha (bcrypt) e emissão de JWT
-  - Endpoint /me para recuperar o usuário autenticado
+  - Registro e login
+  - Emissão e validação de JWT
+  - Endpoint de usuário autenticado
 
-- Busca e detalhes de mídia
-  - Busca unificada por query e tipo
-  - Página de detalhes por ID (inclui lógica de hidratação/enriquecimento)
-  - Integração com Wikidata (fonte principal de identidade) e adaptadores de enriquecimento
+- Mídia e catálogo
+  - Busca unificada por tipo (filme, jogo, livro, álbum)
+  - Página de detalhes por ID de mídia
+  - Cache em banco (MediaReference e MediaAlias)
+  - Integração de hidratação/enriquecimento via adaptadores externos
 
 - Reviews
-  - Criar/atualizar review
+  - Criar/atualizar review (autenticado)
   - Listar reviews por mídia
-  - Deletar review
+  - Deletar review (autenticado)
 
-- Perfil de usuário
-  - Buscar perfil público por handle (inclui favoritos, coleções e contagens)
-  - Atualizar perfil do usuário autenticado (nome, bio, avatar)
+- Usuário
+  - Perfil público por handle
+  - Atualização do perfil autenticado (inclui avatarUrl)
 
-- Gamificação
-  - Listar conquistas do usuário
+- Clubes e fórum
+  - Listagem e detalhes de clubes
+  - Criar/editar clube (autenticado)
+  - Join/leave de clube (autenticado)
+  - Tópicos e respostas (autenticado)
+  - Moderação de tópico (pin/lock)
+
+- Troféus/conquistas
   - Serviço de gamificação acoplado ao fluxo de reviews
+  - Endpoint de consulta de conquistas do usuário
 
-- Clubes e tópicos
-  - CRUD básico de clubes e associação de membros
-  - Criação e listagem de tópicos e respostas
-  - Ações de moderação (pin/lock) no backend
-
-Frontend (client)
-- Autenticação e sessão
-  - Páginas de login e registro
+Frontend
+- Sessão do usuário
+  - Login e registro
   - Persistência de token e interceptor de requisições
 
-- Páginas principais
-  - Dashboard (perfil privado) consumindo dados reais do backend
-  - Profile (perfil público) consumindo dados reais do backend
-  - MediaDetails (detalhes de mídia + editor de review)
+- Busca e navegação
+  - Busca instantânea no HeaderBar consumindo o endpoint de busca
+  - Página de detalhes de mídia com ficha técnica e reviews
 
-- Busca instantânea
-  - Autocomplete no HeaderBar com chamadas ao endpoint de busca
+- Reviews
+  - Editor de review por mídia
 
-- Clubes e tópicos
-  - Páginas de descoberta e detalhes de clubes
-  - Página de tópico com respostas
+- Perfil
+  - Dashboard (perfil privado do usuário)
+  - Profile (perfil público por handle)
+  - Exibição de tags no perfil com base em gêneros das mídias avaliadas
 
-## Funcionalidades não implementadas (o que ficou de fora desta entrega)
+- Clubes
+  - Descoberta e detalhes de clubes
+  - Tópicos e respostas
 
-Dados mocados ainda presentes no frontend
-- HomePage
-  - Destaques (highlights), reviews da comunidade e atividade de amigos são dados estáticos (staticHomeDatabase)
+Limitações conhecidas nesta entrega
+- HomePage ainda utiliza dados mocados para destaques e feed.
+- ForgotPassword e ResetPassword estão simulados, sem fluxo real no backend.
+- Existem arquivos de rotas de favoritos e coleções no backend, mas não estão montadas no server/src/server.js nesta entrega.
 
-- FavoritesPage, ReviewsPage e ListManagementPage
-  - Usuário logado simulado via constante LOGGED_IN_USER_HANDLE = "alexl" para definir isOwner
-  - ListManagementPage usa uma base local em memória para busca/seleção de mídia (não usa a busca unificada do backend)
+## Modelo de dados (descrição e diagrama)
 
-- ClubDetailsPage
-  - Alguns contadores exibidos na UI estão hardcoded (ex: número de tópicos e participantes)
+Descrição resumida
+- User: usuário do sistema (autenticação e perfil)
+- MediaReference: item canônico de mídia (id, type, titles por idioma, sinopses, detalhes)
+- MediaAlias: aliases normalizados para busca rápida (por idioma e tipo)
+- Review: avaliação (rating, conteúdo, tags) ligada a User e MediaReference
+- Collection e CollectionItem: listas do usuário e itens adicionados
+- Club, ClubMember e ClubWork: clubes, membros e obras associadas a clubes
+- Topic e Reply: fórum por clube
+- UserAchievement: conquistas desbloqueadas por usuário
+- Genre e MediaGenre: gêneros canônicos e associação com mídia
 
-- ForgotPasswordPage e ResetPasswordPage
-  - Fluxos de recuperação e redefinição de senha são simulados (sem integração com backend)
+Diagrama ER (Mermaid)
 
-Endpoints existentes no código, mas não disponíveis nesta entrega
-- Existem rotas e controllers para favoritos e coleções no backend, mas elas não estão registradas no server/src/server.js nesta entrega
-  - Consequência: o frontend pode receber 404 ao chamar /api/favorites e /api/collections
+```mermaid
+erDiagram
+  User ||--o{ Review : writes
+  MediaReference ||--o{ Review : receives
 
-Páginas não presentes nesta entrega
-- Páginas completas de listas (ex: ListDetailsPage e ListEditorPage) não constam no client/src/pages
+  User ||--o{ Collection : owns
+  Collection ||--o{ CollectionItem : contains
+  MediaReference ||--o{ CollectionItem : is_in
 
-## Decisões técnicas
+  MediaReference ||--o{ MediaAlias : has
 
-- React + Vite
-  - Escolha voltada para produtividade no desenvolvimento e build rápido.
+  Genre ||--o{ MediaGenre : links
+  MediaReference ||--o{ MediaGenre : links
 
-- Tailwind CSS
-  - Permite padronizar layout e UI de forma consistente e com baixo custo de manutenção.
+  Club ||--o{ ClubMember : has
+  User ||--o{ ClubMember : joins
 
-- Node.js + Express
-  - API leve e direta, compatível com a divisão de camadas routes/controllers/services.
+  Club ||--o{ Topic : hosts
+  User ||--o{ Topic : authors
+  Topic ||--o{ Reply : has
+  User ||--o{ Reply : authors
 
-- Prisma + PostgreSQL
-  - Prisma facilita a evolução do schema, migrations e queries tipadas.
-  - PostgreSQL oferece base relacional estável para usuários, reviews, clubes, relações e cache de mídia.
+  Club ||--o{ ClubWork : tracks
+  MediaReference ||--o{ ClubWork : relates
+```
 
-- Wikidata como fonte canônica
-  - O sistema trata o Wikidata como fonte principal de identidade (QID), reduzindo duplicatas e facilitando canonicalização.
-  - Dados de terceiros (TMDB, RAWG, Google Books, Last.fm, MusicBrainz) são usados para enriquecer campos específicos.
+## Rotas/Endpoints da API (documentação completa)
 
-- Cache local e busca DB-first
-  - MediaReference armazena a referência canônica e campos enriquecidos.
-  - MediaAlias guarda títulos normalizados para acelerar autocomplete e busca.
-
-- Estratégia de hidratação
-  - Itens podem começar como stub e serem enriquecidos sob demanda.
-  - Adaptadores isolam integrações externas e permitem trocar provedores sem reescrever a regra de negócio.
-
-## Rotas/Endpoints (lista das rotas da API)
-
-Base: http://localhost:3000
+Base URL: http://localhost:3000
 
 Health
 - GET /
+  - Retorna status do servidor.
 
 Auth
 - POST /api/auth/register
+  - Body: email, handle, password, name (opcional)
+  - Cria usuário e retorna token.
+
 - POST /api/auth/login
+  - Body: email, password
+  - Retorna token.
+
 - GET /api/auth/me
+  - Auth: Bearer token
+  - Retorna o usuário autenticado.
 
 Media
 - GET /api/media/search
-  - query params: q, type, lang
+  - Query params: q, type, lang
+  - Retorna resultados de busca unificada.
+
 - GET /api/media/:id
-  - query params: type, refresh
+  - Query params: type (opcional), refresh (opcional)
+  - Retorna detalhes da mídia (pode hidratar/enriquecer se necessário).
 
 Reviews
 - POST /api/reviews
+  - Auth: Bearer token
+  - Body: mediaId, rating, content (opcional), tags (opcional), containsSpoilers (opcional)
+  - Cria ou atualiza uma review do usuário para a mídia.
+
 - GET /api/reviews/:mediaId
+  - Lista reviews de uma mídia.
+
 - GET /api/reviews/user/:userId
+  - Lista reviews de um usuário.
+  - Observação: nesta entrega há uma limitação de ordem de rotas no Express; ver Melhorias futuras.
+
 - DELETE /api/reviews/:id
+  - Auth: Bearer token
+  - Remove uma review.
 
 Users
 - GET /api/users/profile/:handle
+  - Retorna perfil público por handle.
+
 - PUT /api/users/profile
+  - Auth: Bearer token
+  - Body: campos de perfil (ex: name, bio, avatarUrl)
+  - Atualiza o perfil do usuário autenticado.
 
 Achievements
 - GET /api/achievements/:userId
+  - Retorna conquistas do usuário.
 
 Clubs
 - GET /api/clubs
+  - Lista clubes.
+
 - GET /api/clubs/:slug
+  - Retorna detalhes do clube.
+
 - POST /api/clubs
+  - Auth: Bearer token
+  - Cria clube.
+
 - PUT /api/clubs/:slug
+  - Auth: Bearer token
+  - Edita clube.
+
 - POST /api/clubs/:slug/join
+  - Auth: Bearer token
+  - Entra no clube.
+
 - POST /api/clubs/:slug/leave
+  - Auth: Bearer token
+  - Sai do clube.
 
 Topics
 - GET /api/topics/club/:clubId
+  - Lista tópicos de um clube.
+
 - GET /api/topics/:topicId
+  - Retorna detalhes do tópico.
+
 - POST /api/topics
+  - Auth: Bearer token
+  - Cria tópico.
+
 - POST /api/topics/:topicId/reply
+  - Auth: Bearer token
+  - Cria resposta.
+
 - PATCH /api/topics/:topicId/pin
+  - Auth: Bearer token
+  - Fixa/desfixa tópico.
+
 - PATCH /api/topics/:topicId/lock
+  - Auth: Bearer token
+  - Tranca/destranca tópico.
 
-Observação
-- As rotas /api/favorites e /api/collections possuem arquivos de rota no projeto, mas não estão montadas no server/src/server.js nesta entrega.
+## Screenshots
 
-## Screenshots das principais telas funcionando 
+![Screenshot 01](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2019-20-38%20Mazarbul.png)
 
-![Screenshot 01](docs/screenshots/Screenshot%202026-01-19%20at%2016-11-48%20Mazarbul.png)
-![Screenshot 02](docs/screenshots/Screenshot%202026-01-19%20at%2019-19-42%20Mazarbul.png)
-![Screenshot 03](docs/screenshots/Screenshot%202026-01-19%20at%2019-20-17%20Mazarbul.png)
-![Screenshot 04](docs/screenshots/Screenshot%202026-01-19%20at%2019-20-23%20Mazarbul.png)
-![Screenshot 05](docs/screenshots/Screenshot%202026-01-19%20at%2019-20-38%20Mazarbul.png)
+![Screenshot 02](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2016-11-48%20Mazarbul.png)
 
-## Dificuldades encontradas e como foram resolvidas
+![Screenshot 03](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2019-19-42%20Mazarbul.png)
 
-- Upload de avatar (payload grande)
-  - Solução: aumento do limite do body JSON no backend (50mb) para suportar avatar em base64.
+![Screenshot 04](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2022-42-22%20Mazarbul.png)
 
-- Canonicalização e enriquecimento multi-fonte
-  - Solução: Wikidata como fonte principal de identidade e estrutura de adaptadores para enriquecer com TMDB, RAWG, Google Books, Last.fm e MusicBrainz.
+![Screenshot 05](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2022-41-45%20Mazarbul.png)
 
-- Multilíngue
-  - Solução: armazenamento de títulos e sinopses por idioma em campos JSON (PT, EN, ES) e suporte a aliases por idioma.
+![Screenshot 06](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2022-41-33%20Mazarbul.png)
 
-- Performance de busca
-  - Solução: índice MediaAlias com título normalizado e indexes no schema para consultas rápidas.
+![Screenshot 07](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2022-40-44%20Mazarbul.png)
 
-- Rate limit em integração externa (MusicBrainz)
-  - Solução: fila e intervalo mínimo entre requisições no adaptador para reduzir erros por excesso de chamadas.
+![Screenshot 08](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2022-40-29%20Mazarbul.png)
 
-## Diagrama de Arquitetura (opcional, recomendado)
+![Screenshot 09](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2022-32-36%20Mazarbul.png)
 
-Diagrama simples do fluxo de dados
+![Screenshot 10](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2022-39-35%20Mazarbul.png)
 
-```text
-[Browser]
-   |
-   | HTTP (Axios)
-   v
-[client (React/Vite)]
-   |
-   | HTTP REST /api/*
-   v
-[server (Express)]
-   |
-   | Prisma
-   v
-[PostgreSQL]
+![Screenshot 11](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2022-39-47%20Mazarbul.png)
 
-Integrações de enriquecimento (na hidratação/busca)
+Para atingir o mínimo de 8, recomenda-se adicionar pelo menos mais 3 screenshots cobrindo:
+- Login
+- Registro
+- Descoberta de Clubes ou Detalhes de Clube
 
-[server] -> Wikidata
-[server] -> TMDB (filmes)
-[server] -> RAWG (jogos)
-[server] -> Google Books (sinopses/capas)
-[server] -> Last.fm + MusicBrainz (álbuns)
-```
+## Decisões técnicas e justificativas
 
-Estrutura do monorepo (visão de arquitetura por pastas)
+- Wikidata como fonte canônica (QID)
+  - Objetivo: garantir uma página única por obra, reduzindo duplicatas geradas por ruído e variações de provedores.
+  - Benefício: a navegação se mantém estável mesmo com múltiplas edições (principalmente em livros).
 
-```text
-client/  -> UI, rotas e chamadas de API
-server/  -> API, regras de negócio, persistência e integrações externas
-```
+- Cache DB-first com MediaReference e MediaAlias
+  - Objetivo: acelerar buscas e evitar chamadas externas repetidas.
+  - Benefício: o primeiro acesso pode hidratar, e acessos seguintes tendem a ser mais rápidos.
+
+- Prisma com PostgreSQL
+  - Objetivo: modelagem consistente, migrations e query segura via ORM.
+
+- Separação por camadas no backend (routes/controllers/services/utils)
+  - Objetivo: manter integrações externas isoladas (adaptadores) e regras de negócio concentradas (services).
+
+## Melhorias futuras (o que poderia ser adicionado)
+
+- Remover dados mocados da Home e substituir por feed real do banco (reviews recentes, destaques, atividade).
+- Implementar recuperação de senha real (token, expiração e envio de e-mail).
+- Montar rotas de favoritos e coleções no server/src/server.js e concluir o fluxo ponta a ponta no frontend.
+- Corrigir a ordem das rotas em reviews para garantir que /api/reviews/user/:userId funcione corretamente.
+- Implementar paginação em busca e feeds.
+- Padronizar tratamento de erros e respostas HTTP.
+- Melhorar estratégia de hidratação (fila, backoff e observabilidade) para lidar melhor com rate limits.
