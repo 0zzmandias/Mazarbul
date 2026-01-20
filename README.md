@@ -395,11 +395,6 @@ Topics
 
 ![Screenshot 11](https://github.com/0zzmandias/Mazarbul/raw/main/docs/screenshots/Screenshot%202026-01-19%20at%2022-39-47%20Mazarbul.png)
 
-Para atingir o mínimo de 8, recomenda-se adicionar pelo menos mais 3 screenshots cobrindo:
-- Login
-- Registro
-- Descoberta de Clubes ou Detalhes de Clube
-
 ## Decisões técnicas e justificativas
 
 - Wikidata como fonte canônica (QID)
